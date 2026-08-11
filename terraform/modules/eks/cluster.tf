@@ -39,7 +39,7 @@ resource "aws_eks_cluster" "cluster" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy
+    aws_iam_role_policy_attachment.eks_cluster_policy,
     aws_iam_role_policy_attachment.eks_node_minimal,
     aws_iam_role_policy_attachment.eks_node_ecr
   ]

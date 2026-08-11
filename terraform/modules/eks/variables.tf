@@ -84,3 +84,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "model_bucket_name" {
+  description = "Name of the S3 bucket containing model artifacts."
+  type        = string
+}
