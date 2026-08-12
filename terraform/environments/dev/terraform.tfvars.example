@@ -28,3 +28,9 @@ access_principal_arns = [
   "arn:aws:iam::123456789012:role/ai-inference-terraform-role",
   "arn:aws:iam::123456789012:user/your-user-name",
 ]
+
+# Monitoring configuration (kube-prometheus-stack)
+enable_observability                = true
+kube_prometheus_stack_chart_version = "87.17.0"
+prometheus_storage_class            = "gp2"
+
