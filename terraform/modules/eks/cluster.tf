@@ -20,7 +20,7 @@ resource "aws_eks_cluster" "cluster" {
   }
 
   # EKS Auto Mode configuration
-  compute_config = {
+  compute_config {
     enabled       = true
     node_pools    = ["general-purpose", "system"]
     node_role_arn = aws_iam_role.eks_node_role.arn

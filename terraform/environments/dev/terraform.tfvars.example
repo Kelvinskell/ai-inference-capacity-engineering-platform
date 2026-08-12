@@ -17,3 +17,14 @@ private_subnet_cidrs = [
   "10.20.8.0/22",
   "10.20.12.0/22",
 ]
+
+# EKS configuration
+kubernetes_version   = "1.36"
+endpoint_access_mode = "public"
+authentication_mode  = "API"
+
+# IAM principals that receive EKS cluster-admin via access entries
+access_principal_arns = [
+  "arn:aws:iam::123456789012:role/ai-inference-terraform-role",
+  "arn:aws:iam::123456789012:user/your-user-name",
+]

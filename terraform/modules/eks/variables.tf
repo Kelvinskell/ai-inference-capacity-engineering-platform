@@ -85,7 +85,7 @@ variable "tags" {
   default     = {}
 }
 
-variable "model_bucket_name" {
+variable "model_bucket_arn" {
   description = "Name of the S3 bucket containing model artifacts."
   type        = string
 }

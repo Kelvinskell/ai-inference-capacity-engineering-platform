@@ -28,7 +28,7 @@ module "eks" {
 
   name_prefix           = var.name_prefix
   cluster_name          = var.cluster_name
-  bucket_name           = module.s3.bucket_name
+  model_bucket_arn      = module.s3.bucket_arn
   environment           = var.environment
   kubernetes_version    = var.kubernetes_version
   vpc_id                = module.networking.vpc_id

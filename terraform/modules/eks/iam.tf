@@ -99,7 +99,7 @@ data "aws_iam_policy_document" "s3_csi" {
     sid       = "ReadModelObjects"
     effect    = "Allow"
     actions   = ["s3:GetObject"]
-    resources = ["${local.model_bucket_arn}/*"]
+    resources = ["${var.model_bucket_arn}/*"]
   }
 }
 

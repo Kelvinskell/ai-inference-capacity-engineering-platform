@@ -78,3 +78,41 @@ variable "tags" {
     Project     = "AI-Inference-Capacity-Engineering-Platform"
   }
 }
+
+# EKS control plane configuration
+variable "kubernetes_version" {
+  description = "Kubernetes version for EKS control plane."
+  type        = string
+  default     = "1.36"
+}
+
+variable "endpoint_access_mode" {
+  description = "EKS API endpoint access mode: private, public, or both."
+  type        = string
+  default     = "private"
+
+  validation {
+    condition     = contains(["private", "public", "both"], var.endpoint_access_mode)
+    error_message = "endpoint_access_mode must be one of: private, public, both."
+  }
+}
+
+# EKS authentication and API-based access bootstrap
+variable "authentication_mode" {
+  description = "EKS authentication mode for this environment."
+  type        = string
+  default     = "API"
+
+  validation {
+    condition     = contains(["CONFIG_MAP", "API_AND_CONFIG_MAP", "API"], var.authentication_mode)
+    error_message = "authentication_mode must be one of: CONFIG_MAP, API_AND_CONFIG_MAP, API."
+  }
+}
+
+# Principals that receive cluster-admin via EKS access entries
+variable "access_principal_arns" {
+  description = "IAM principal ARNs that should receive EKS cluster admin via access entries."
+  type        = list(string)
+  default     = []
+}
+
