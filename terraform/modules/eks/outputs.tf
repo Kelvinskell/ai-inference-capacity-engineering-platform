@@ -29,3 +29,13 @@ output "cluster_oidc_provider_arn" {
   description = "IAM OIDC provider ARN for IRSA integrations."
   value       = aws_iam_openid_connect_provider.cluster_oidc.arn
 }
+
+output "node_role_name" {
+  description = "IAM role name used by EKS Auto Mode nodes."
+  value       = aws_iam_role.eks_node_role.name
+}
+
+output "cluster_primary_security_group_id" {
+  description = "EKS-created primary cluster security group ID."
+  value       = aws_eks_cluster.cluster.vpc_config[0].cluster_security_group_id
+}
