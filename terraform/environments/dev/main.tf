@@ -1,4 +1,4 @@
-# Create networking module
+# Create networking resources
 module "networking" {
   source = "../../modules/networking"
 
@@ -13,13 +13,22 @@ module "networking" {
   tags                 = var.tags
 }
 
-# Create EKS module
-# Create EKS control plane
+# S3 Model storage
+module "s3" {
+  source = "../../modules/s3-model-storage"
+
+  bucket_name   = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
+  force_destroy = true
+  tags          = var.tags
+}
+
+# Create EKS Control plane
 module "eks" {
   source = "../../modules/eks"
 
   name_prefix           = var.name_prefix
   cluster_name          = var.cluster_name
+  bucket_name           = module.s3.bucket_name
   environment           = var.environment
   kubernetes_version    = var.kubernetes_version
   vpc_id                = module.networking.vpc_id
