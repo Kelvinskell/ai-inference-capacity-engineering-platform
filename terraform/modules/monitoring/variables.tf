@@ -63,7 +63,8 @@ variable "helm_timeout_seconds" {
 
 variable "enable_dcgm_exporter" {
   description = "Enable Nvidia DCGM Exporter"
-  type        = string
+  type        = bool
+  default     = true
 }
 
 variable "dcgm_exporter_chart_version" {
