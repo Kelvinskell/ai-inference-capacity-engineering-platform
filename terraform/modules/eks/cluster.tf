@@ -3,6 +3,7 @@ resource "aws_eks_cluster" "cluster" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
   version  = var.kubernetes_version
+  bootstrap_self_managed_addons = false
 
   enabled_cluster_log_types = var.cluster_log_types
 
