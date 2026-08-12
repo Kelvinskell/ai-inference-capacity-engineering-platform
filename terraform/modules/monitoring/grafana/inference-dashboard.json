@@ -103,7 +103,7 @@
 			"pluginVersion": "6.5.2",
 			"targets": [
 				{
-					"expr": "sum(rate(vllm:generation_tokens_total{namespace=\"llm-serving\"}[1m]))",
+					"expr": "sum(rate(vllm:generation_tokens_total{namespace=\"ai-inference\"}[1m]))",
 					"refId": "A"
 				}
 			],
@@ -154,7 +154,7 @@
 			"pluginVersion": "6.5.2",
 			"targets": [
 				{
-					"expr": "sum(max by (pod) (vllm:num_requests_waiting{namespace=\"llm-serving\"}))",
+					"expr": "sum(max by (pod) (vllm:num_requests_waiting{namespace=\"ai-inference\"}))",
 					"refId": "A"
 				}
 			],
@@ -207,7 +207,7 @@
 			"pluginVersion": "6.5.2",
 			"targets": [
 				{
-					"expr": "100 * max(vllm:kv_cache_usage_perc{namespace=\"llm-serving\"})",
+					"expr": "100 * max(vllm:kv_cache_usage_perc{namespace=\"ai-inference\"})",
 					"refId": "A"
 				}
 			],
@@ -259,7 +259,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "sum by (pod) (rate(vllm:generation_tokens_total{namespace=\"llm-serving\"}[1m]))",
+					"expr": "sum by (pod) (rate(vllm:generation_tokens_total{namespace=\"ai-inference\"}[1m]))",
 					"legendFormat": "{{pod}}",
 					"refId": "A"
 				}
@@ -348,12 +348,12 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "max by (pod) (vllm:num_requests_running{namespace=\"llm-serving\"})",
+					"expr": "max by (pod) (vllm:num_requests_running{namespace=\"ai-inference\"})",
 					"legendFormat": "running {{pod}}",
 					"refId": "A"
 				},
 				{
-					"expr": "max by (pod) (vllm:num_requests_waiting{namespace=\"llm-serving\"})",
+					"expr": "max by (pod) (vllm:num_requests_waiting{namespace=\"ai-inference\"})",
 					"legendFormat": "waiting {{pod}}",
 					"refId": "B"
 				}
@@ -442,7 +442,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					  "expr": "100 * max by (pod) (avg_over_time(vllm:kv_cache_usage_perc{namespace=\"llm-serving\"}[30m]))",
+					  "expr": "100 * max by (pod) (avg_over_time(vllm:kv_cache_usage_perc{namespace=\"ai-inference\"}[30m]))",
 					"legendFormat": "{{pod}}",
 					"refId": "A"
 				}
@@ -531,7 +531,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "sum by (pod) (increase(vllm:num_preemptions_total{namespace=\"llm-serving\"}[5m]))",
+					"expr": "sum by (pod) (increase(vllm:num_preemptions_total{namespace=\"ai-inference\"}[5m]))",
 					"legendFormat": "{{pod}}",
 					"refId": "A"
 				}
@@ -620,7 +620,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "sum by (pod) (increase(vllm:prefix_cache_hits_total{namespace=\"llm-serving\"}[5m]))",
+					"expr": "sum by (pod) (increase(vllm:prefix_cache_hits_total{namespace=\"ai-inference\"}[5m]))",
 					"legendFormat": "{{pod}}",
 					"refId": "A"
 				}
@@ -709,12 +709,12 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "sum by (pod) (rate(vllm:request_prompt_tokens_sum{namespace=\"llm-serving\"}[1m]))",
+					"expr": "sum by (pod) (rate(vllm:request_prompt_tokens_sum{namespace=\"ai-inference\"}[1m]))",
 					"legendFormat": "prompt tokens/s {{pod}}",
 					"refId": "A"
 				},
 				{
-					"expr": "sum by (pod) (rate(vllm:request_params_max_tokens_sum{namespace=\"llm-serving\"}[5m])) / clamp_min(sum by (pod) (rate(vllm:request_params_max_tokens_count{namespace=\"llm-serving\"}[5m])), 1e-9)",
+					"expr": "sum by (pod) (rate(vllm:request_params_max_tokens_sum{namespace=\"ai-inference\"}[5m])) / clamp_min(sum by (pod) (rate(vllm:request_params_max_tokens_count{namespace=\"ai-inference\"}[5m])), 1e-9)",
 					"legendFormat": "avg max_tokens {{pod}}",
 					"refId": "B"
 				}
@@ -803,12 +803,12 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "sum(rate(vllm:generation_tokens_total{namespace=\"llm-serving\"}[1m])) / clamp_min(sum(vllm:num_requests_running{namespace=\"llm-serving\"}), 1)",
+					"expr": "sum(rate(vllm:generation_tokens_total{namespace=\"ai-inference\"}[1m])) / clamp_min(sum(vllm:num_requests_running{namespace=\"ai-inference\"}), 1)",
 					"legendFormat": "total",
 					"refId": "A"
 				},
 				{
-					"expr": "sum by (pod) (rate(vllm:generation_tokens_total{namespace=\"llm-serving\"}[1m])) / clamp_min(sum by (pod) (vllm:num_requests_running{namespace=\"llm-serving\"}), 1)",
+					"expr": "sum by (pod) (rate(vllm:generation_tokens_total{namespace=\"ai-inference\"}[1m])) / clamp_min(sum by (pod) (vllm:num_requests_running{namespace=\"ai-inference\"}), 1)",
 					"legendFormat": "{{pod}}",
 					"refId": "B"
 				}

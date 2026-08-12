@@ -97,7 +97,7 @@
 			"pluginVersion": "6.5.2",
 			"targets": [
 				{
-					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					"refId": "A"
 				}
 			],
@@ -148,7 +148,7 @@
 			"pluginVersion": "6.5.2",
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					"refId": "A"
 				}
 			],
@@ -200,7 +200,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					  "legendFormat": "TTFT p95",
 					"refId": "A"
 				}
@@ -289,7 +289,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					"expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					  "legendFormat": "E2E p95",
 					"refId": "A"
 				}
@@ -378,7 +378,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					  "legendFormat": "E2E p99",
 					"refId": "A"
 				}
@@ -467,7 +467,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_prefill_time_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_prefill_time_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					  "legendFormat": "Prefill p95",
 					"refId": "A"
 				}
@@ -556,7 +556,7 @@
 			"steppedLine": false,
 			"targets": [
 				{
-					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_decode_time_seconds_bucket{namespace=\"llm-serving\",pod=~\"$pod\"}[30m])))",
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_decode_time_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
 					  "legendFormat": "Decode p95",
 					"refId": "A"
 				}
@@ -619,14 +619,14 @@
 					"value": ".*"
 				},
 				"datasource": "Prometheus",
-				"definition": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"llm-serving\"}, pod)",
+				"definition": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\"}, pod)",
 				"hide": 0,
 				"includeAll": true,
 				"label": "Pod",
 				"multi": false,
 				"name": "pod",
 				"options": [],
-				"query": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"llm-serving\"}, pod)",
+				"query": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\"}, pod)",
 				"refresh": 1,
 				"regex": "",
 				"skipUrlSync": false,
