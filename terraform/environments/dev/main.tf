@@ -39,3 +39,13 @@ module "eks" {
   access_principal_arns = var.access_principal_arns
   tags                  = var.tags
 }
+
+# Create Custom Gpu Node resources
+# Create custom GPU NodeClass and NodePools
+module "gpu_node" {
+  source = "../../modules/gpu-node"
+
+  node_role_name        = module.eks.node_role_name
+  private_subnet_ids    = module.networking.private_subnet_ids
+  node_security_group_id = module.eks.cluster_primary_security_group_id
+}
