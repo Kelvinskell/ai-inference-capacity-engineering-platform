@@ -4,7 +4,7 @@ resource "kubernetes_manifest" "gpu_nodeclass" {
     kind       = "NodeClass"
 
     metadata = {
-      name = "gpu-nodeclass"
+      name = "gpu"
     }
 
     spec = {

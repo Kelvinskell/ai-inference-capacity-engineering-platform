@@ -24,7 +24,7 @@ resource "kubernetes_manifest" "gpu_on_demand_nodepool" {
           nodeClassRef = {
             group = "eks.amazonaws.com"
             kind  = "NodeClass"
-            name  = "gpu-nodeclass"
+            name  = "gpu"
           }
 
           taints = [
@@ -97,7 +97,7 @@ resource "kubernetes_manifest" "gpu_spot_nodepool" {
           nodeClassRef = {
             group = "eks.amazonaws.com"
             kind  = "NodeClass"
-            name  = "gpu-nodeclass"
+            name  = "gpu"
           }
 
           taints = [
