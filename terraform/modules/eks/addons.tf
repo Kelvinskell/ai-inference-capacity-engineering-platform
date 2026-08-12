@@ -14,3 +14,14 @@ resource "aws_eks_addon" "s3_csi" {
 
   tags = local.common_tags
 }
+
+# Metrics server
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name = aws_eks_cluster.cluster.name
+  addon_name   = "metrics-server"
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = local.common_tags
+}
