@@ -1,8 +1,8 @@
 # EKS control plane (managed Kubernetes)
 resource "aws_eks_cluster" "cluster" {
-  name     = var.cluster_name
-  role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = var.kubernetes_version
+  name                          = var.cluster_name
+  role_arn                      = aws_iam_role.eks_cluster_role.arn
+  version                       = var.kubernetes_version
   bootstrap_self_managed_addons = false
 
   enabled_cluster_log_types = var.cluster_log_types
@@ -40,14 +40,14 @@ resource "aws_eks_cluster" "cluster" {
   }
 
   depends_on = [
-  aws_iam_role_policy_attachment.eks_cluster_policy,
-  aws_iam_role_policy_attachment.eks_compute_policy,
-  aws_iam_role_policy_attachment.eks_block_storage_policy,
-  aws_iam_role_policy_attachment.eks_load_balancing_policy,
-  aws_iam_role_policy_attachment.eks_networking_policy,
-  aws_iam_role_policy_attachment.eks_node_minimal,
-  aws_iam_role_policy_attachment.eks_node_ecr
-]
+    aws_iam_role_policy_attachment.eks_cluster_policy,
+    aws_iam_role_policy_attachment.eks_compute_policy,
+    aws_iam_role_policy_attachment.eks_block_storage_policy,
+    aws_iam_role_policy_attachment.eks_load_balancing_policy,
+    aws_iam_role_policy_attachment.eks_networking_policy,
+    aws_iam_role_policy_attachment.eks_node_minimal,
+    aws_iam_role_policy_attachment.eks_node_ecr
+  ]
 
   tags = merge(local.common_tags, {
     Name = "${var.name_prefix}-eks-${var.environment}"

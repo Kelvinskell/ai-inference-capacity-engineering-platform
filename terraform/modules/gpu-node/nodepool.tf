@@ -112,7 +112,7 @@ resource "kubernetes_manifest" "gpu_spot_nodepool" {
             {
               key      = "node.kubernetes.io/instance-type"
               operator = "In"
-              values = var.spot_instance_types
+              values   = var.spot_instance_types
             },
             {
               key      = "kubernetes.io/arch"
