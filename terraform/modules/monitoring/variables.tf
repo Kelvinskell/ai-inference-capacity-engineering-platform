@@ -35,6 +35,13 @@ variable "chart_version" {
   type        = string
 }
 
+variable "grafana_admin_password" {
+  description = "Grafana administrator password."
+  type        = string
+  sensitive   = true
+  default     = "notforprod"
+}
+
 # Prometheus data retention and storage settings.
 variable "prometheus_retention" {
   description = "Prometheus TSDB retention period."

@@ -15,6 +15,13 @@ resource "helm_release" "kube_prometheus_stack" {
   cleanup_on_fail = true
   timeout         = var.helm_timeout_seconds
 
+  set_sensitive = [
+    {
+      name  = "grafana.adminPassword"
+      value = var.grafana_admin_password
+    }
+  ]
+
   values = [
     yamlencode({
       # Install Prometheus Operator CRDs with the chart.
