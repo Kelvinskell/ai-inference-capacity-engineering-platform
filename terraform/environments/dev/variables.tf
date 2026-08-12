@@ -178,3 +178,10 @@ variable "dcgm_exporter_chart_version" {
   type        = string
   default     = "4.8.3"
 }
+
+# KServe
+variable "enable_kserve_module" {
+  description = "Enable or disable kserve module"
+  type        = bool
+  default     = true
+}

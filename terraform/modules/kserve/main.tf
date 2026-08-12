@@ -30,10 +30,12 @@ resource "helm_release" "cert_manager" {
   cleanup_on_fail = true
   timeout         = var.helm_timeout_seconds
 
-  set {
+  set = [
+  {
     name  = "crds.enabled"
     value = "true"
   }
+]
 }
 
 # istio base
