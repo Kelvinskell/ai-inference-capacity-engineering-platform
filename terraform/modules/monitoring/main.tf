@@ -45,6 +45,9 @@ resource "helm_release" "kube_prometheus_stack" {
       }
     })
   ]
+  depends_on = [
+    kubernetes_storage_class_v1.prometheus
+  ]
 }
 
 # Install DCGM (Data Center GPU Manager) Exporter
