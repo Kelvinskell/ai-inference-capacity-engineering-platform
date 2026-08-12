@@ -63,7 +63,6 @@ module "monitoring" {
   dcgm_exporter_chart_version = var.dcgm_exporter_chart_version
 
   depends_on = [
-    module.eks,
-    module.gpu_node
+    module.eks
   ]
 }
