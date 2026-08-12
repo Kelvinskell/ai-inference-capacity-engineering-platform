@@ -1,5 +1,5 @@
-resource "kubernetes_manifest" "gpu_nodeclass" {
-  manifest = {
+resource "kubectl_manifest" "gpu_nodeclass" {
+  yaml_body = yamlencode({
     apiVersion = "eks.amazonaws.com/v1"
     kind       = "NodeClass"
 
@@ -32,6 +32,6 @@ resource "kubernetes_manifest" "gpu_nodeclass" {
         throughput = 125
       }
     }
-  }
+  })
 }
 

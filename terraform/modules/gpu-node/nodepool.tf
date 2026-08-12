@@ -1,6 +1,6 @@
 # Create On-demand NodePool
-resource "kubernetes_manifest" "gpu_on_demand_nodepool" {
-  manifest = {
+resource "kubectl_manifest" "gpu_on_demand_nodepool" {
+  yaml_body = yamlencode({
     apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"
 
@@ -64,16 +64,16 @@ resource "kubernetes_manifest" "gpu_on_demand_nodepool" {
         consolidateAfter    = "15m"
       }
     }
-  }
+  })
 
   depends_on = [
-    kubernetes_manifest.gpu_nodeclass
+    kubectl_manifest.gpu_nodeclass
   ]
 }
 
 # Spot Nodepool
-resource "kubernetes_manifest" "gpu_spot_nodepool" {
-  manifest = {
+resource "kubectl_manifest" "gpu_spot_nodepool" {
+  yaml_body = yamlencode({
     apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"
 
@@ -137,9 +137,9 @@ resource "kubernetes_manifest" "gpu_spot_nodepool" {
         consolidateAfter    = "5m"
       }
     }
-  }
+  })
 
   depends_on = [
-    kubernetes_manifest.gpu_nodeclass
+    kubectl_manifest.gpu_nodeclass
   ]
 }
