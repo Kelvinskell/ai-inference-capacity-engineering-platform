@@ -40,10 +40,14 @@ resource "aws_eks_cluster" "cluster" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_iam_role_policy_attachment.eks_node_minimal,
-    aws_iam_role_policy_attachment.eks_node_ecr
-  ]
+  aws_iam_role_policy_attachment.eks_cluster_policy,
+  aws_iam_role_policy_attachment.eks_compute_policy,
+  aws_iam_role_policy_attachment.eks_block_storage_policy,
+  aws_iam_role_policy_attachment.eks_load_balancing_policy,
+  aws_iam_role_policy_attachment.eks_networking_policy,
+  aws_iam_role_policy_attachment.eks_node_minimal,
+  aws_iam_role_policy_attachment.eks_node_ecr
+]
 
   tags = merge(local.common_tags, {
     Name = "${var.name_prefix}-eks-${var.environment}"

@@ -10,7 +10,10 @@ resource "aws_iam_role" "eks_cluster_role" {
         Principal = {
           Service = "eks.amazonaws.com"
         }
-        Action = "sts:AssumeRole"
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
       }
     ]
   })
@@ -20,25 +23,48 @@ resource "aws_iam_role" "eks_cluster_role" {
   })
 }
 
-# Attach AWS managed EKS cluster policy
+# Required EKS cluster policy
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# EKS Auto Mode Node Role
+# Required EKS Auto Mode cluster policies
+resource "aws_iam_role_policy_attachment" "eks_compute_policy" {
+  role       = aws_iam_role.eks_cluster_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSComputePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_block_storage_policy" {
+  role       = aws_iam_role.eks_cluster_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSBlockStoragePolicyV2"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_load_balancing_policy" {
+  role       = aws_iam_role.eks_cluster_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_networking_policy" {
+  role       = aws_iam_role.eks_cluster_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSNetworkingPolicy"
+}
+
+# EKS Auto Mode node role
 resource "aws_iam_role" "eks_node_role" {
   name = "${var.name_prefix}-eks-node-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "ec2.amazonaws.com"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
       }
-      Action = "sts:AssumeRole"
-    }]
+    ]
   })
 
   tags = local.common_tags
@@ -54,8 +80,7 @@ resource "aws_iam_role_policy_attachment" "eks_node_ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
 }
 
-# S3 CSI driver role.
-# IAM role used by the Mountpoint for Amazon S3 CSI driver.
+# IAM role used by the Mountpoint for Amazon S3 CSI driver
 data "aws_iam_policy_document" "s3_csi_assume_role" {
   statement {
     effect  = "Allow"
