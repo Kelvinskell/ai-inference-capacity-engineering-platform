@@ -1,0 +1,665 @@
+{
+	"__inputs": [
+		{
+			"name": "DS_PROMETHEUS",
+			"label": "Prometheus",
+			"description": "",
+			"type": "datasource",
+			"pluginId": "prometheus",
+			"pluginName": "Prometheus"
+		}
+	],
+	"__requires": [
+		{
+			"type": "panel",
+			"id": "graph",
+			"name": "Graph",
+			"version": ""
+		},
+		{
+			"type": "panel",
+			"id": "stat",
+			"name": "Stat",
+			"version": ""
+		},
+		{
+			"type": "grafana",
+			"id": "grafana",
+			"name": "Grafana",
+			"version": "6.5.2"
+		},
+		{
+			"type": "datasource",
+			"id": "prometheus",
+			"name": "Prometheus",
+			"version": "1.0.0"
+		}
+	],
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": "-- Grafana --",
+				"enable": true,
+				"hide": true,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard"
+			}
+		]
+	},
+	"editable": true,
+	"gnetId": null,
+	"graphTooltip": 1,
+	"id": null,
+	"iteration": 1710000000000,
+	"links": [],
+	"panels": [
+		{
+			"datasource": "Prometheus",
+			"gridPos": {
+				"h": 5,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"options": {
+				"fieldOptions": {
+					"calcs": [
+						"last"
+					],
+					"defaults": {
+						"mappings": [],
+						"thresholds": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "#EAB839",
+								"value": 1
+							},
+							{
+								"color": "red",
+								"value": 3
+							}
+						],
+						"unit": "s"
+					},
+					"override": {},
+					"values": false
+				},
+				"orientation": "auto",
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true
+			},
+			"pluginVersion": "6.5.2",
+			"targets": [
+				{
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					"refId": "A"
+				}
+			],
+			"timeFrom": null,
+			"timeShift": null,
+			"title": "Current TTFT p95",
+			"type": "stat"
+		},
+		{
+			"datasource": "Prometheus",
+			"gridPos": {
+				"h": 5,
+				"w": 12,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"options": {
+				"fieldOptions": {
+					"calcs": [
+						"last"
+					],
+					"defaults": {
+						"mappings": [],
+						"thresholds": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "#EAB839",
+								"value": 4
+							},
+							{
+								"color": "red",
+								"value": 10
+							}
+						],
+						"unit": "s"
+					},
+					"override": {},
+					"values": false
+				},
+				"orientation": "auto",
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true
+			},
+			"pluginVersion": "6.5.2",
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					"refId": "A"
+				}
+			],
+			"timeFrom": null,
+			"timeShift": null,
+			"title": "Current E2E p99",
+			"type": "stat"
+		},
+		{
+			"aliasColors": {},
+			"bars": false,
+			"dashLength": 10,
+			"dashes": false,
+			"datasource": "Prometheus",
+			"fill": 1,
+			"fillGradient": 0,
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 5
+			},
+			"hiddenSeries": false,
+			"id": 3,
+			"legend": {
+				"alignAsTable": true,
+				"avg": true,
+				"current": true,
+				"max": true,
+				"min": false,
+				"rightSide": true,
+				"show": true,
+				"total": false,
+				"values": true
+			},
+			"lines": true,
+			"linewidth": 2,
+			"nullPointMode": "null",
+			"options": {
+				"dataLinks": []
+			},
+			"percentage": false,
+			"pointradius": 2,
+			"points": false,
+			"renderer": "flot",
+			"seriesOverrides": [],
+			"spaceLength": 10,
+			"stack": false,
+			"steppedLine": false,
+			"targets": [
+				{
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					  "legendFormat": "TTFT p95",
+					"refId": "A"
+				}
+			],
+			"thresholds": [],
+			"timeFrom": null,
+			"timeRegions": [],
+			"timeShift": null,
+			"title": "TTFT p95 (30m)",
+			"tooltip": {
+				"shared": true,
+				"sort": 0,
+				"value_type": "individual"
+			},
+			"type": "graph",
+			"xaxis": {
+				"buckets": null,
+				"mode": "time",
+				"name": null,
+				"show": true,
+				"values": []
+			},
+			"yaxes": [
+				{
+					"format": "s",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": "0",
+					"show": true
+				},
+				{
+					"format": "short",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": null,
+					"show": true
+				}
+			],
+			"yaxis": {
+				"align": false,
+				"alignLevel": null
+			}
+		},
+		{
+			"aliasColors": {},
+			"bars": false,
+			"dashLength": 10,
+			"dashes": false,
+			"datasource": "Prometheus",
+			"fill": 1,
+			"fillGradient": 0,
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 5
+			},
+			"hiddenSeries": false,
+			"id": 4,
+			"legend": {
+				"alignAsTable": true,
+				"avg": true,
+				"current": true,
+				"max": true,
+				"min": false,
+				"rightSide": true,
+				"show": true,
+				"total": false,
+				"values": true
+			},
+			"lines": true,
+			"linewidth": 2,
+			"nullPointMode": "null",
+			"options": {
+				"dataLinks": []
+			},
+			"percentage": false,
+			"pointradius": 2,
+			"points": false,
+			"renderer": "flot",
+			"seriesOverrides": [],
+			"spaceLength": 10,
+			"stack": false,
+			"steppedLine": false,
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					  "legendFormat": "E2E p95",
+					"refId": "A"
+				}
+			],
+			"thresholds": [],
+			"timeFrom": null,
+			"timeRegions": [],
+			"timeShift": null,
+			"title": "End-to-End Latency p95 (30m)",
+			"tooltip": {
+				"shared": true,
+				"sort": 0,
+				"value_type": "individual"
+			},
+			"type": "graph",
+			"xaxis": {
+				"buckets": null,
+				"mode": "time",
+				"name": null,
+				"show": true,
+				"values": []
+			},
+			"yaxes": [
+				{
+					"format": "s",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": "0",
+					"show": true
+				},
+				{
+					"format": "short",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": null,
+					"show": true
+				}
+			],
+			"yaxis": {
+				"align": false,
+				"alignLevel": null
+			}
+		},
+		{
+			"aliasColors": {},
+			"bars": false,
+			"dashLength": 10,
+			"dashes": false,
+			"datasource": "Prometheus",
+			"fill": 1,
+			"fillGradient": 0,
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 13
+			},
+			"hiddenSeries": false,
+			"id": 5,
+			"legend": {
+				"alignAsTable": true,
+				"avg": true,
+				"current": true,
+				"max": true,
+				"min": false,
+				"rightSide": true,
+				"show": true,
+				"total": false,
+				"values": true
+			},
+			"lines": true,
+			"linewidth": 2,
+			"nullPointMode": "null",
+			"options": {
+				"dataLinks": []
+			},
+			"percentage": false,
+			"pointradius": 2,
+			"points": false,
+			"renderer": "flot",
+			"seriesOverrides": [],
+			"spaceLength": 10,
+			"stack": false,
+			"steppedLine": false,
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:e2e_request_latency_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					  "legendFormat": "E2E p99",
+					"refId": "A"
+				}
+			],
+			"thresholds": [],
+			"timeFrom": null,
+			"timeRegions": [],
+			"timeShift": null,
+			"title": "End-to-End Latency p99 (30m)",
+			"tooltip": {
+				"shared": true,
+				"sort": 0,
+				"value_type": "individual"
+			},
+			"type": "graph",
+			"xaxis": {
+				"buckets": null,
+				"mode": "time",
+				"name": null,
+				"show": true,
+				"values": []
+			},
+			"yaxes": [
+				{
+					"format": "s",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": "0",
+					"show": true
+				},
+				{
+					"format": "short",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": null,
+					"show": true
+				}
+			],
+			"yaxis": {
+				"align": false,
+				"alignLevel": null
+			}
+		},
+		{
+			"aliasColors": {},
+			"bars": false,
+			"dashLength": 10,
+			"dashes": false,
+			"datasource": "Prometheus",
+			"fill": 1,
+			"fillGradient": 0,
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 13
+			},
+			"hiddenSeries": false,
+			"id": 6,
+			"legend": {
+				"alignAsTable": true,
+				"avg": true,
+				"current": true,
+				"max": true,
+				"min": false,
+				"rightSide": true,
+				"show": true,
+				"total": false,
+				"values": true
+			},
+			"lines": true,
+			"linewidth": 2,
+			"nullPointMode": "null",
+			"options": {
+				"dataLinks": []
+			},
+			"percentage": false,
+			"pointradius": 2,
+			"points": false,
+			"renderer": "flot",
+			"seriesOverrides": [],
+			"spaceLength": 10,
+			"stack": false,
+			"steppedLine": false,
+			"targets": [
+				{
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_prefill_time_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					  "legendFormat": "Prefill p95",
+					"refId": "A"
+				}
+			],
+			"thresholds": [],
+			"timeFrom": null,
+			"timeRegions": [],
+			"timeShift": null,
+			"title": "Prefill p95 (30m)",
+			"tooltip": {
+				"shared": true,
+				"sort": 0,
+				"value_type": "individual"
+			},
+			"type": "graph",
+			"xaxis": {
+				"buckets": null,
+				"mode": "time",
+				"name": null,
+				"show": true,
+				"values": []
+			},
+			"yaxes": [
+				{
+					"format": "s",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": "0",
+					"show": true
+				},
+				{
+					"format": "short",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": null,
+					"show": true
+				}
+			],
+			"yaxis": {
+				"align": false,
+				"alignLevel": null
+			}
+		},
+		{
+			"aliasColors": {},
+			"bars": false,
+			"dashLength": 10,
+			"dashes": false,
+			"datasource": "Prometheus",
+			"fill": 1,
+			"fillGradient": 0,
+			"gridPos": {
+				"h": 8,
+				"w": 24,
+				"x": 0,
+				"y": 21
+			},
+			"hiddenSeries": false,
+			"id": 7,
+			"legend": {
+				"alignAsTable": true,
+				"avg": true,
+				"current": true,
+				"max": true,
+				"min": false,
+				"rightSide": true,
+				"show": true,
+				"total": false,
+				"values": true
+			},
+			"lines": true,
+			"linewidth": 2,
+			"nullPointMode": "null",
+			"options": {
+				"dataLinks": []
+			},
+			"percentage": false,
+			"pointradius": 2,
+			"points": false,
+			"renderer": "flot",
+			"seriesOverrides": [],
+			"spaceLength": 10,
+			"stack": false,
+			"steppedLine": false,
+			"targets": [
+				{
+					  "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:request_decode_time_seconds_bucket{namespace=\"ai-inference\",pod=~\"$pod\"}[30m])))",
+					  "legendFormat": "Decode p95",
+					"refId": "A"
+				}
+			],
+			"thresholds": [],
+			"timeFrom": null,
+			"timeRegions": [],
+			"timeShift": null,
+			"title": "Decode p95 (30m)",
+			"tooltip": {
+				"shared": true,
+				"sort": 0,
+				"value_type": "individual"
+			},
+			"type": "graph",
+			"xaxis": {
+				"buckets": null,
+				"mode": "time",
+				"name": null,
+				"show": true,
+				"values": []
+			},
+			"yaxes": [
+				{
+					"format": "s",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": "0",
+					"show": true
+				},
+				{
+					"format": "short",
+					"label": null,
+					"logBase": 1,
+					"max": null,
+					"min": null,
+					"show": true
+				}
+			],
+			"yaxis": {
+				"align": false,
+				"alignLevel": null
+			}
+		}
+	],
+	"refresh": "30s",
+	"schemaVersion": 21,
+	"style": "dark",
+	"tags": [
+		"vllm",
+		"latency"
+	],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": ".*"
+				},
+				"datasource": "Prometheus",
+				"definition": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\"}, pod)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Pod",
+				"multi": false,
+				"name": "pod",
+				"options": [],
+				"query": "label_values(vllm:time_to_first_token_seconds_bucket{namespace=\"ai-inference\"}, pod)",
+				"refresh": 1,
+				"regex": "",
+				"skipUrlSync": false,
+				"sort": 1,
+				"tagValuesQuery": "",
+				"tags": [],
+				"tagsQuery": "",
+				"type": "query",
+				"useTags": false
+			}
+		]
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
+	"timepicker": {
+		"refresh_intervals": [
+			"5s",
+			"10s",
+			"30s",
+			"1m",
+			"5m",
+			"15m",
+			"30m",
+			"1h",
+			"2h",
+			"1d"
+		]
+	},
+	"timezone": "",
+	"title": "vLLM Latency Dashboard",
+	"uid": "vllm-latency",
+	"version": 1,
+	"description": "Per-pod vLLM latency dashboard with current TTFT p95 and E2E p99 cards on top."
+}

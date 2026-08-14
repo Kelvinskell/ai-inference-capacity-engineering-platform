@@ -1,0 +1,73 @@
+name: Kubernetes Pipeline (dev)
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: kubernetes-dev-pipeline
+  cancel-in-progress: false
+
+jobs:
+  apply-k8s:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Install AWS CLI
+        run: |
+          if ! command -v aws >/dev/null 2>&1; then
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+          else
+            echo "AWS CLI already available"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}"
+
+      # Apply the Kubernetes manifests from the repo root.
+      - name: Apply Kubernetes manifests
+        run: |
+          # Core namespace first so all namespaced resources can be created safely.
+          kubectl apply -f kubernetes/namespaces
+
+          # Create/update the warmer script ConfigMap used by the storage workload.
+          kubectl create configmap model-uploader-script \
+            --namespace model-storage \
+            --from-file=sync_models_to_s3.py=scripts/s3-model-upload/sync_models_to_s3.py \
+            --from-file=requirements.txt=scripts/s3-model-upload/requirements.txt \
+            --dry-run=client -o yaml | kubectl apply -f -
+        
+          # Ensure fresh job for each async run.
+          kubectl delete job s3-model-uploader \
+            --namespace model-storage \
+            --ignore-not-found
+
+          # Storage + monitoring resources.
+          kubectl apply -f kubernetes/storage
+          kubectl apply -f kubernetes/observability

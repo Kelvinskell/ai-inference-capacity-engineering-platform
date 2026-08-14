@@ -1,0 +1,36 @@
+aws_region                    = "eu-west-1"
+aws_account_id                = "123456789012"
+terraform_execution_role_name = "ai-inference-terraform-role"
+
+name_prefix  = "ai-inference"
+cluster_name = "ai-inference-eks-dev"
+
+vpc_cidr = "10.20.0.0/20"
+
+# Must contain exactly az_count CIDRs.
+public_subnet_cidrs = [
+  "10.20.0.0/24",
+  "10.20.1.0/24",
+]
+
+private_subnet_cidrs = [
+  "10.20.8.0/22",
+  "10.20.12.0/22",
+]
+
+# EKS configuration
+kubernetes_version   = "1.36"
+endpoint_access_mode = "public"
+authentication_mode  = "API"
+
+# IAM principals that receive EKS cluster-admin via access entries
+access_principal_arns = [
+  "arn:aws:iam::123456789012:role/ai-inference-terraform-role",
+  "arn:aws:iam::123456789012:user/your-user-name",
+]
+
+# Monitoring configuration (kube-prometheus-stack)
+enable_observability                = true
+kube_prometheus_stack_chart_version = "87.17.0"
+prometheus_storage_class            = "gp2"
+
