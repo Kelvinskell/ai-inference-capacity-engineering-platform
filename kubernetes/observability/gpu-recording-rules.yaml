@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gpu-observability-recording-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: gpu.observability.rules
+      interval: 1m
+      rules:
+        - record: platform_gpu_utilization_5m
+          expr: avg_over_time(DCGM_FI_DEV_GPU_UTIL[5m])
+
+        - record: platform_gpu_memory_used_ratio_5m
+          expr: |
+            100 *
+            avg_over_time(DCGM_FI_DEV_FB_USED[5m])
+            /
+            clamp_min(
+              avg_over_time(DCGM_FI_DEV_FB_USED[5m]) + avg_over_time(DCGM_FI_DEV_FB_FREE[5m]),
+              1
+            )
+
+        - record: platform_gpu_memory_peak_5m
+          expr: max_over_time(DCGM_FI_DEV_FB_USED[5m])
+
+        - record: platform_gpu_power_avg_5m
+          expr: avg_over_time(DCGM_FI_DEV_POWER_USAGE[5m])
+
+        - record: platform_gpu_temperature_avg_5m
+          expr: avg_over_time(DCGM_FI_DEV_GPU_TEMP[5m])
