@@ -25,3 +25,14 @@ resource "aws_eks_addon" "metrics_server" {
 
   tags = local.common_tags
 }
+
+# EKS Pod Identity Agent to supply AWS credentials to associated pods.
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.cluster.name
+  addon_name   = "eks-pod-identity-agent"
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  tags = local.common_tags
+}
