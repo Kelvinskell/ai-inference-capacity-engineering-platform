@@ -17,10 +17,10 @@ module "networking" {
 module "s3" {
   source = "../../modules/s3-model-storage"
 
-  bucket_name   = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
-  force_destroy = true
+  bucket_name      = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
+  force_destroy    = true
   eks_cluster_name = var.cluster_name
-  tags          = var.tags
+  tags             = var.tags
 }
 
 # Create EKS Control plane
