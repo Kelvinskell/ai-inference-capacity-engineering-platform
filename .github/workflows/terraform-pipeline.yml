@@ -4,7 +4,7 @@ on:
   # Automatic execution for Terraform changes proposed to master branch.
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - terraform/**
       - kubernetes/**
