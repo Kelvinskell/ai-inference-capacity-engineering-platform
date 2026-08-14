@@ -1,0 +1,45 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gpu-observability-alert-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: gpu.observability.alerts
+      interval: 1m
+      rules:
+        - alert: GpuHighUtilization
+          expr: avg_over_time(DCGM_FI_DEV_GPU_UTIL[10m]) > 85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GPU utilization has been high for 10 minutes"
+            description: "Average GPU utilization exceeded 85% for 10 minutes on a GPU node."
+
+        - alert: GpuHighMemoryPressure
+          expr: |
+            100 *
+            avg_over_time(DCGM_FI_DEV_FB_USED[10m])
+            /
+            clamp_min(
+              avg_over_time(DCGM_FI_DEV_FB_USED[10m]) + avg_over_time(DCGM_FI_DEV_FB_FREE[10m]),
+              1
+            ) > 90
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GPU memory pressure is high"
+            description: "Average GPU memory usage exceeded 90% for 10 minutes."
+
+        - alert: DcgmExporterDown
+          expr: up{job="dcgm-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "DCGM exporter is down"
+            description: "The DCGM exporter target is not scraping metrics."
