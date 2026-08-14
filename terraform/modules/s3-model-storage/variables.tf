@@ -9,6 +9,11 @@ variable "force_destroy" {
   default     = false
 }
 
+variable "eks_cluster_name" {
+  description = "The name of the eks cluster"
+  type = string
+}
+
 variable "tags" {
   description = "Tags applied to S3 resources."
   type        = map(string)

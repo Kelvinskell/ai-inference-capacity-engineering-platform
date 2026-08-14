@@ -19,6 +19,7 @@ module "s3" {
 
   bucket_name   = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
   force_destroy = true
+  eks_cluster_name = module.eks.cluster_name
   tags          = var.tags
 }
 
