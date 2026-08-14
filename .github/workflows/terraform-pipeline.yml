@@ -1,0 +1,138 @@
+name: Terraform Pipeline (dev)
+
+on:
+  # Automatic execution for Terraform changes proposed to master branch.
+  pull_request:
+    branches:
+      - master
+    paths:
+      - terraform/**
+      - kubernetes/**
+      - .github/workflows/**
+  # Manual execution. Supports explicit apply/destroy selection.
+  workflow_dispatch:
+    inputs:
+      terraform_action:
+        description: Terraform action to run
+        required: true
+        type: choice
+        default: apply
+        options:
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+  id-token: write
+
+# Prevent overlapping runs for the same dev pipeline.
+concurrency:
+  group: terraform-dev-pipeline
+  cancel-in-progress: false
+
+jobs:
+  terraform-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      should_run_k8s: ${{ steps.set-k8s-output.outputs.should_run_k8s }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      TERRAFORM_EXECUTION_ROLE_NAME: ${{ vars.TERRAFORM_EXECUTION_ROLE_NAME }}
+      VPC_CIDR: ${{ vars.VPC_CIDR }}
+      PUBLIC_SUBNET_CIDRS: ${{ vars.PUBLIC_SUBNET_CIDRS }}
+      PRIVATE_SUBNET_CIDRS: ${{ vars.PRIVATE_SUBNET_CIDRS }}
+      KUBERNETES_VERSION: ${{ vars.KUBERNETES_VERSION }}
+      ENDPOINT_ACCESS_MODE: ${{ vars.ENDPOINT_ACCESS_MODE }}
+      ACCESS_PRINCIPAL_ARNS: ${{ vars.ACCESS_PRINCIPAL_ARNS }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: terraform/envs/dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.7
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive ../../
+
+      # Build a runtime tfvars file from GitHub Environment variables.
+      - name: Generate runtime tfvars
+        run: |
+          cat > ci.auto.tfvars <<EOF
+          aws_region                    = "${AWS_REGION}"
+          aws_account_id                = "${AWS_ACCOUNT_ID}"
+          terraform_execution_role_name = "${TERRAFORM_EXECUTION_ROLE_NAME}"
+          vpc_cidr = "${VPC_CIDR}"
+          public_subnet_cidrs  = ${PUBLIC_SUBNET_CIDRS}
+          private_subnet_cidrs = ${PRIVATE_SUBNET_CIDRS}
+          kubernetes_version   = "${KUBERNETES_VERSION}"
+          endpoint_access_mode = "${ENDPOINT_ACCESS_MODE}"
+          access_principal_arns = ${ACCESS_PRINCIPAL_ARNS}
+          EOF
+
+      - name: Terraform init
+        run: terraform init -reconfigure
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -var-file=ci.auto.tfvars -no-color
+
+      # Only trigger Kubernetes apply for non-destroy runs.
+      - name: Decide Kubernetes apply
+        id: set-k8s-output
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.terraform_action }}" == "apply" ]]; then
+            echo "should_run_k8s=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run_k8s=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Apply runs automatically on PR and on manual runs when action=apply.
+      - name: Terraform apply First (PR + manual apply)
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.terraform_action == 'apply')
+        run: terraform apply -auto-approve -var-file=ci.auto.tfvars -var="enable_kserve_module=false"
+
+      - name: Update kubeconfig
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.terraform_action == 'apply')
+        run: |
+          aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}"
+
+      - name: Terraform apply Second (PR + manual apply)
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.terraform_action == 'apply')
+        run: terraform apply -auto-approve -var-file=ci.auto.tfvars -var="enable_kserve_module=true"
+
+      # Destroy is intentionally manual-only.
+      - name: Terraform destroy (manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.terraform_action == 'destroy'
+        run: |
+          set -euo pipefail
+
+          echo "Phase 1/3: disable Kubernetes add-on modules while cluster is reachable"
+          terraform apply -auto-approve -var-file=ci.auto.tfvars \
+            -var="enable_kserve_module=false" 
+
+          echo "Phase 2/2: destroy remaining infrastructure"
+          terraform destroy -auto-approve -var-file=ci.auto.tfvars
+
+  trigger-k8s:
+    needs: terraform-dev
+    if: needs.terraform-dev.outputs.should_run_k8s == 'true'
+    uses: ./.github/workflows/kubernetes-pipeline.yml
+    secrets: inherit
