@@ -50,7 +50,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: terraform/envs/dev
+        working-directory: terraform/environments/dev
 
     steps:
       - name: Checkout
@@ -59,7 +59,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.14.7
+          terraform_version: 1.15.0
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4

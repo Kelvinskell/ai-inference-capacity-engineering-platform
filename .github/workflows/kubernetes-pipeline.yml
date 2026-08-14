@@ -62,6 +62,11 @@ jobs:
             --from-file=sync_models_to_s3.py=scripts/s3-model-upload/sync_models_to_s3.py \
             --from-file=requirements.txt=scripts/s3-model-upload/requirements.txt \
             --dry-run=client -o yaml | kubectl apply -f -
+        
+          # Ensure fresh job for each async run.
+          kubectl delete job s3-model-uploader \
+            --namespace model-storage \
+            --ignore-not-found
 
           # Storage + monitoring resources.
           kubectl apply -f kubernetes/storage
