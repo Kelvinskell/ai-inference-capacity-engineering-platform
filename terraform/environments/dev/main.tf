@@ -72,8 +72,4 @@ module "monitoring" {
 module "kserve" {
   count  = var.enable_kserve_module ? 1 : 0
   source = "../../modules/kserve"
-
-  depends_on = [
-    module.eks
-  ]
 }
