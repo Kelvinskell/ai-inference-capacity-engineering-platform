@@ -31,9 +31,11 @@ spec:
           - --port
           - "8000"
           - --gpu-memory-utilization
-          - "0.85"
+          - "0.90"
           - --max-num-seqs
           - "16"
+          - --max-model-length
+          - "15000"
 
         ports:
           - name: http
@@ -49,6 +51,14 @@ spec:
             cpu: "2000m"
             memory: "7Gi"
             nvidia.com/gpu: "1"
+
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 90
 
         readinessProbe:
           httpGet:
