@@ -1,0 +1,80 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    serving.kserve.io/autoscalerClass: external
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  predictor:
+    serviceAccountName: deepseek-r1-14b
+
+    nodeSelector:
+      gpu: "true"
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+    containers:
+      - name: kserve-container
+        image: vllm/vllm-openai:v0.25.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - /models
+          - --host
+          - 0.0.0.0
+          - --port
+          - "8000"
+          - --gpu-memory-utilization
+          - "0.85"
+          - --max-num-seqs
+          - "16"
+
+        ports:
+          - name: http
+            containerPort: 8000
+            protocol: TCP
+
+        resources:
+          requests:
+            cpu: "1200m"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "2000m"
+            memory: "7Gi"
+            nvidia.com/gpu: "1"
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 18
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 6
+
+        volumeMounts:
+          - name: model-storage
+            mountPath: /models
+            subPath: models/deepseek-14b-awq
+            readOnly: true
+
+    volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: deepseek-r1-14b

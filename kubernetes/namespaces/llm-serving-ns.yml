@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-serving
+  labels:
+    app.kubernetes.io/part-of: k8s-llm-serving-platform
+    app.kubernetes.io/name: llm-serving

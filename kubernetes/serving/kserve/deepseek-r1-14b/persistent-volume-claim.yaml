@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: ""
+  volumeName: deepseek-r1-14b
+  resources:
+    requests:
+      storage: 1Gi
