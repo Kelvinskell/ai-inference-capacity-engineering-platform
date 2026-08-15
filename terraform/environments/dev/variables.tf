@@ -11,7 +11,7 @@ variable "aws_account_id" {
 variable "terraform_execution_role_name" {
   description = "IAM role name assumed by Terraform."
   type        = string
-  default     = "k8s-llm-serving-terraform-role"
+  default     = "ai-inference-terraform-role"
 }
 
 variable "environment" {
@@ -153,7 +153,7 @@ variable "prometheus_retention" {
 variable "prometheus_storage_class" {
   description = "StorageClass for Prometheus PVC. Empty means chart default."
   type        = string
-  default     = "gp2"
+  default     = "auto-ebs-gp3"
 }
 
 variable "prometheus_storage_size" {
@@ -169,7 +169,7 @@ variable "prometheus_storage_size" {
 
 variable "enable_dcgm_exporter" {
   description = "Enable Nvidia DCGM Exporter"
-  type        = string
+  type        = bool
   default     = true
 }
 

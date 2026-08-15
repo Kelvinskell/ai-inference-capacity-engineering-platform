@@ -83,6 +83,7 @@ jobs:
           kubernetes_version   = "${KUBERNETES_VERSION}"
           endpoint_access_mode = "${ENDPOINT_ACCESS_MODE}"
           access_principal_arns = ${ACCESS_PRINCIPAL_ARNS}
+          cluster_name          = "${EKS_CLUSTER_NAME}"
           EOF
 
       - name: Terraform init

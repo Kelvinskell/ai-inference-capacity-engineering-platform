@@ -52,7 +52,7 @@ variable "prometheus_retention" {
 variable "prometheus_storage_class" {
   description = "StorageClass name for Prometheus PVC; empty uses cluster default."
   type        = string
-  default     = ""
+  default     = "auto-ebs-gp3"
 }
 
 variable "prometheus_storage_size" {
