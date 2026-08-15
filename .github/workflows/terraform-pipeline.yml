@@ -61,20 +61,6 @@ jobs:
         with:
           terraform_version: 1.15.0
 
-      - name: Show GitHub OIDC subject
-        run: |
-          set -euo pipefail
-
-          token="$(
-            curl -fsSL \
-              -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-            | jq -r '.value'
-          )"
-
-          payload="$(python3 -c 'import base64, sys; segment = sys.argv[1].split(".")[1]; print(base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4)).decode())' "$token")"
-          printf '%s\n' "$payload" | jq '{sub, aud, repository, repository_id, repository_owner, repository_owner_id, ref, environment}'
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
