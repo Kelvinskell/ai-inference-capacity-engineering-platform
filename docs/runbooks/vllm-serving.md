@@ -169,19 +169,6 @@ kubectl logs -n llm-serving "$POD"
 kubectl logs -n llm-serving "$POD" --previous
 ```
 
-### Symptom: `hostPath type check failed`
-
-Cause: a stale node-local model-cache configuration is applied. The deployment must use:
-
-```yaml
-volumes:
-  - name: model-storage
-    persistentVolumeClaim:
-      claimName: deepseek-r1-14b
-```
-
-It must not use `hostPath: /var/lib/llm-model-cache`.
-
 ### Symptom: liveness restarts vLLM during loading
 
 Cause: vLLM has not opened port `8000` before liveness begins. The deployment requires its `startupProbe`; Kubernetes does not run readiness or liveness probes until startup succeeds.
@@ -257,7 +244,7 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
     \"messages\": [
       {\"role\": \"user\", \"content\": \"During a traffic spike, p95 time-to-first-token rises from 0.8 to 6 seconds while GPU utilization stays below 55 percent and GPU memory remains near its idle level. State the most likely failure modes to investigate first and the telemetry that would distinguish them.\"}
     ],
-    \"max_tokens\": 128,
+    \"max_tokens\": 1200,
     \"temperature\": 0.2,
     \"stream\": true
   }"
