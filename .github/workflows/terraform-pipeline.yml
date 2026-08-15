@@ -72,7 +72,7 @@ jobs:
             | jq -r '.value'
           )"
 
-          payload="$(printf '%s' "$token" | cut -d. -f2 | base64 --decode)"
+          payload="$(python3 -c 'import base64, sys; segment = sys.argv[1].split(".")[1]; print(base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4)).decode())' "$token")"
           printf '%s\n' "$payload" | jq '{sub, aud, repository, repository_id, repository_owner, repository_owner_id, ref, environment}'
 
       - name: Configure AWS credentials (OIDC)
