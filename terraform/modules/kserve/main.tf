@@ -88,7 +88,8 @@ resource "helm_release" "istio_ingressgateway" {
     yamlencode({
       service = {
         annotations = {
-          "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+          "service.beta.kubernetes.io/aws-load-balancer-scheme"      = "internet-facing"
+          "service.beta.kubernetes.io/aws-load-balancer-attributes" = "load_balancing.cross_zone.enabled=true"
         }
       }
     })
