@@ -229,7 +229,7 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
     \"messages\": [
       {\"role\": \"user\", \"content\": \"A 14B AWQ model runs on one A10G with a 15,000-token context limit. Given 20 requests per minute, 3,000 prompt tokens, and 500 output tokens per request, identify the first two capacity bottlenecks and propose one measurable alert for each.\"}
     ],
-    \"max_tokens\": 128,
+    \"max_tokens\": 1000,
     \"temperature\": 0.2
   }" | jq
 ```
