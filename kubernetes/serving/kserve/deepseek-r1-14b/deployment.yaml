@@ -34,7 +34,7 @@ spec:
           - "0.90"
           - --max-num-seqs
           - "16"
-          - --max-model-length
+          - --max-model-len
           - "15000"
 
         ports:
