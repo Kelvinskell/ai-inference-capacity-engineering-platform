@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-serving
+  selector:
+    matchExpressions:
+      - key: serving.kserve.io/inferenceservice
+        operator: In
+        values:
+          - deepseek-r1-14b
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

@@ -17,10 +17,9 @@ module "networking" {
 module "s3" {
   source = "../../modules/s3-model-storage"
 
-  bucket_name      = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
-  force_destroy    = true
-  eks_cluster_name = var.cluster_name
-  tags             = var.tags
+  bucket_name   = "${var.name_prefix}-models-${var.environment}-${var.aws_account_id}"
+  force_destroy = true
+  tags          = var.tags
 }
 
 # Create EKS Control plane
@@ -39,6 +38,13 @@ module "eks" {
   authentication_mode   = var.authentication_mode
   access_principal_arns = var.access_principal_arns
   tags                  = var.tags
+}
+
+resource "aws_eks_pod_identity_association" "model_uploader" {
+  cluster_name    = module.eks.cluster_name
+  namespace       = "model-storage"
+  service_account = "model-uploader"
+  role_arn        = module.s3.model_uploader_role_arn
 }
 
 # Create custom GPU NodeClass and NodePools

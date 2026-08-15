@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: deepseek-r1-14b
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: llm-serving
+    name: deepseek-r1-14b
+  mountOptions:
+    - region eu-west-1
+  csi:
+    driver: s3.csi.aws.com
+    volumeHandle: deepseek-r1-14b
+    volumeAttributes:
+      bucketName: ai-inference-models-dev-538578370232
+      authenticationSource: driver
