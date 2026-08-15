@@ -106,7 +106,7 @@ jobs:
           fi
 
       # Apply runs automatically on PR and on manual runs when action=apply.
-      - name: Terraform apply First (PR + manual apply)
+      - name: Terraform apply 
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.terraform_action == 'apply')
         run: terraform apply -auto-approve -var-file=ci.auto.tfvars 
 
