@@ -30,7 +30,7 @@ access_principal_arns = [
 ]
 
 # Monitoring configuration (kube-prometheus-stack)
-enable_observability                = true
+enable_monitoring                = true
 kube_prometheus_stack_chart_version = "87.17.0"
-prometheus_storage_class            = "gp2"
+prometheus_storage_class            = "auto-ebs-gp3"
 
