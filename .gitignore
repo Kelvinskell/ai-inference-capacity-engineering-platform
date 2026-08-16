@@ -45,3 +45,11 @@ terraform.rc
 
 # Local project roadmap
 /docs/roadmap/project-roadmap.md
+
+# Generated benchmark results
+/benchmarks/*/results/
+
+# Local Python runtime artifacts
+.venv/
+__pycache__/
+*.py[cod]

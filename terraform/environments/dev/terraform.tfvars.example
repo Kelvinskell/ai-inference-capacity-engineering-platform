@@ -30,7 +30,12 @@ access_principal_arns = [
 ]
 
 # Monitoring configuration (kube-prometheus-stack)
-enable_monitoring                = true
+enable_monitoring                    = true
 kube_prometheus_stack_chart_version = "87.17.0"
 prometheus_storage_class            = "auto-ebs-gp3"
+
+# Envoy AI Gateway configuration
+enable_envoy_ai_gateway          = true
+envoy_gateway_chart_version      = "v1.8.3"
+envoy_ai_gateway_chart_version   = "v1.0.0"
 

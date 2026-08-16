@@ -79,3 +79,14 @@ module "kserve" {
   count  = var.enable_kserve_module ? 1 : 0
   source = "../../modules/kserve"
 }
+
+# Deploy Envoy Gateway and Envoy AI Gateway controllers.
+module "envoy_ai_gateway" {
+  source = "../../modules/envoy_ai_gateway"
+
+  enabled                        = var.enable_envoy_ai_gateway
+  envoy_gateway_chart_version    = var.envoy_gateway_chart_version
+  envoy_ai_gateway_chart_version = var.envoy_ai_gateway_chart_version
+
+  depends_on = [module.eks]
+}

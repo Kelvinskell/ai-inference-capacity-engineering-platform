@@ -1,0 +1,48 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  endpoints:
+    - fqdn:
+        hostname: deepseek-r1-14b-predictor.llm-serving.svc.cluster.local
+        port: 80
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIServiceBackend
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  schema:
+    name: OpenAI
+  backendRef:
+    group: gateway.envoyproxy.io
+    kind: Backend
+    name: deepseek-r1-14b
+---
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIGatewayRoute
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-ai-gateway
+  rules:
+    - timeouts:
+        request: 360s
+      backendRefs:
+        - name: deepseek-r1-14b

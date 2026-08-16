@@ -5,7 +5,10 @@
 This runbook validates the DeepSeek R1 14B AWQ serving workload deployed by KServe in `RawDeployment` mode.
 
 ```text
-KServe InferenceService
+Client
+-> AWS Network Load Balancer or local port-forward
+-> Envoy AI Gateway
+-> KServe InferenceService
 -> KServe predictor Deployment and Service
 -> vLLM OpenAI-compatible API
 -> EKS Auto Mode GPU node
@@ -19,7 +22,7 @@ The Kubernetes pipeline applies the serving manifests in:
 kubernetes/serving/kserve/deepseek-r1-14b/
 ```
 
-This is a Phase 1 direct-to-predictor validation path. Envoy AI Gateway is introduced later as the platform entry point.
+The Envoy AI Gateway is the platform entry point. Direct predictor access is reserved for local troubleshooting.
 
 ## Related Manifests
 
@@ -28,7 +31,10 @@ This is a Phase 1 direct-to-predictor validation path. Envoy AI Gateway is intro
 - `kubernetes/serving/kserve/deepseek-r1-14b/persistent-volume-claim.yaml`
 - `kubernetes/serving/kserve/deepseek-r1-14b/deployment.yaml`
 - `kubernetes/serving/kserve/deepseek-r1-14b/service-monitor.yaml`
-- `kubernetes/serving/kserve/deepseek-r1-14b/virtual-service.yaml`
+- `kubernetes/gateway/gateway.yaml`
+- `kubernetes/gateway/deepseek-r1-14b-route.yaml`
+- `kubernetes/gateway/auth.yaml`
+- `kubernetes/gateway/rate-limit.yaml`
 
 ## Serving Configuration
 
@@ -45,6 +51,10 @@ This is a Phase 1 direct-to-predictor validation path. Envoy AI Gateway is intro
 | Predictor Service | `deepseek-r1-14b-predictor` |
 | Container port | `8000` |
 | Predictor Service port | `80` |
+| Gateway | `envoy-ai-gateway` |
+| Public endpoint | `http://<NLB_DNS>` |
+| Authentication | `Authorization: Bearer <API_KEY>` |
+| Local rate limit | `100` requests per second |
 | GPU request | `nvidia.com/gpu: "1"` |
 | GPU selector | `gpu: "true"` |
 | GPU memory utilization | `0.90` |
@@ -57,7 +67,8 @@ The S3 CSI driver authenticates through its driver-level IAM role. The `deepseek
 
 - `kubectl` context points to the target EKS cluster.
 - Namespace `llm-serving` exists.
-- KServe, Istio, and Prometheus are deployed.
+- KServe, Envoy Gateway, Envoy AI Gateway, and Prometheus are deployed.
+- The Gateway, route, authentication policy, and rate-limit policy are applied.
 - The Mountpoint S3 CSI add-on is installed.
 - The S3 model uploader completed successfully.
 - The S3 bucket contains `models/deepseek-14b-awq/_MANIFEST.json`.
@@ -200,29 +211,69 @@ curl -s http://127.0.0.1:8000/v1/models | jq
 
 Use the returned `data[0].id`; with the current positional model path, it is expected to be `/models`.
 
-## Step 6: Port-Forward and Test the Predictor
+## Step 6: Select the Gateway Endpoint
 
-The KServe-generated predictor Service uses port `80` and forwards to the vLLM container on `8000`.
+For public access, get the NLB hostname and set the gateway base URL:
+
+```sh
+kubectl get gateway envoy-ai-gateway -n llm-serving
+
+ENVOY_SERVICE="$(kubectl get svc \
+  -n envoy-gateway-system \
+  -l gateway.envoyproxy.io/owning-gateway-name=envoy-ai-gateway \
+  -o jsonpath='{.items[0].metadata.name}')"
+
+NLB_DNS="$(kubectl get svc \
+  -n envoy-gateway-system \
+  "${ENVOY_SERVICE}" \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+
+export BASE_URL="http://${NLB_DNS}"
+```
+
+To test the same gateway path without using the NLB, port-forward the Envoy Service:
 
 ```sh
 kubectl port-forward \
-  -n llm-serving \
-  svc/deepseek-r1-14b-predictor \
-  8000:80
+  -n envoy-gateway-system \
+  "service/${ENVOY_SERVICE}" \
+  8080:80
 ```
 
-In another terminal, check health and discover the model ID:
+In another terminal, use the local endpoint:
 
 ```sh
-curl -i http://127.0.0.1:8000/health
-MODEL_ID="$(curl -s http://127.0.0.1:8000/v1/models | jq -r '.data[0].id')"
-printf '%s\n' "$MODEL_ID"
+export BASE_URL="http://127.0.0.1:8080"
 ```
 
-Send a minimal OpenAI-compatible request:
+Both endpoint options exercise the Envoy route, authentication policy, and rate-limit policy. Set the development credential and model identifier:
 
 ```sh
-curl -s http://127.0.0.1:8000/v1/chat/completions \
+export API_KEY="notforprod"
+export MODEL_ID="/models"
+```
+
+The checked-in token is for development validation only. Replace the Secret value before using this endpoint outside the development environment.
+
+## Step 7: Test Authentication and Inference
+
+A request without the bearer token must return `401 Unauthorized`:
+
+```sh
+curl -i "${BASE_URL}/v1/chat/completions" \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"model\": \"${MODEL_ID}\",
+    \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}],
+    \"max_tokens\": 1
+  }"
+```
+
+Send an authenticated OpenAI-compatible request:
+
+```sh
+curl -s "${BASE_URL}/v1/chat/completions" \
+  -H "Authorization: Bearer ${API_KEY}" \
   -H 'Content-Type: application/json' \
   -d "{
     \"model\": \"${MODEL_ID}\",
@@ -237,7 +288,8 @@ curl -s http://127.0.0.1:8000/v1/chat/completions \
 Validate streaming:
 
 ```sh
-curl -N http://127.0.0.1:8000/v1/chat/completions \
+curl -N "${BASE_URL}/v1/chat/completions" \
+  -H "Authorization: Bearer ${API_KEY}" \
   -H 'Content-Type: application/json' \
   -d "{
     \"model\": \"${MODEL_ID}\",
@@ -252,7 +304,22 @@ curl -N http://127.0.0.1:8000/v1/chat/completions \
 
 Useful response fields are `choices[0].message.content`, `choices[0].finish_reason`, and the `usage` token counts.
 
-## Step 7: Verify Prometheus Scraping
+The gateway applies a local limit of `100` requests per second to this route. Requests above the limit receive `429 Too Many Requests`; Envoy does not queue or retry them. The bucket is local to each Envoy replica, so the aggregate limit increases when the gateway has multiple replicas. This guardrail permits concurrency-100 benchmark profiles while rejecting larger bursts.
+
+For direct predictor troubleshooting only, bypass Envoy with a separate port-forward:
+
+```sh
+kubectl port-forward \
+  -n llm-serving \
+  svc/deepseek-r1-14b-predictor \
+  8000:80
+
+curl -s http://127.0.0.1:8000/v1/models | jq
+```
+
+This path does not enforce gateway authentication or rate limiting and must not be used as the public serving endpoint.
+
+## Step 8: Verify Prometheus Scraping
 
 ```sh
 kubectl get servicemonitor deepseek-r1-14b -n llm-serving -o yaml
