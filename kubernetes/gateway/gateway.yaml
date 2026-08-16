@@ -1,0 +1,69 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-ai-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: envoy-ai-gateway
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  gatewayClassName: envoy-ai-gateway
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: envoy-ai-gateway
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: envoy-ai-gateway
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        name: envoy-ai-gateway
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-attributes: load_balancing.cross_zone.enabled=true,tcp.idle_timeout.seconds=420
+          service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+        allocateLoadBalancerNodePorts: false
+        externalTrafficPolicy: Cluster
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: envoy-ai-gateway
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-ai-gateway
+  timeout:
+    http:
+      streamIdleTimeout: 360s
+  connection:
+    bufferLimit: 50Mi
