@@ -217,17 +217,26 @@ For public access, get the NLB hostname and set the gateway base URL:
 
 ```sh
 kubectl get gateway envoy-ai-gateway -n llm-serving
-kubectl get svc envoy-ai-gateway -n llm-serving
 
-export BASE_URL="http://<NLB_DNS>"
+ENVOY_SERVICE="$(kubectl get svc \
+  -n envoy-gateway-system \
+  -l gateway.envoyproxy.io/owning-gateway-name=envoy-ai-gateway \
+  -o jsonpath='{.items[0].metadata.name}')"
+
+NLB_DNS="$(kubectl get svc \
+  -n envoy-gateway-system \
+  "${ENVOY_SERVICE}" \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+
+export BASE_URL="http://${NLB_DNS}"
 ```
 
 To test the same gateway path without using the NLB, port-forward the Envoy Service:
 
 ```sh
 kubectl port-forward \
-  -n llm-serving \
-  svc/envoy-ai-gateway \
+  -n envoy-gateway-system \
+  "service/${ENVOY_SERVICE}" \
   8080:80
 ```
 
