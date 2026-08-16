@@ -254,7 +254,7 @@ def main():
         args.namespace,
         args.pod_regex,
     )
-    gpu_selector = f'Hostname="{args.gpu_hostname}"'
+    gpu_selector = f'hostname="{args.gpu_hostname}"'
 
     #
     # vLLM scheduler metrics.

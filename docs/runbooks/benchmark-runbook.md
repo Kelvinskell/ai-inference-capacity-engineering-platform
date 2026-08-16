@@ -404,7 +404,7 @@ The runner treats required telemetry as mandatory. Missing required Prometheus d
 
 ### GPU metrics are empty
 
-Confirm that DCGM exporter exposes metrics for the predictor node and that its `Hostname` label matches the pod's `.spec.nodeName`:
+Confirm that DCGM exporter exposes metrics for the predictor node and that its `hostname` label matches the pod's `.spec.nodeName`:
 
 ```bash
 kubectl -n llm-serving get pod \
