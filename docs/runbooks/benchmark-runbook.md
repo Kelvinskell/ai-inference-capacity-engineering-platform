@@ -287,7 +287,7 @@ results/
     <run-and-case-key>-summary.json
 ```
 
-- `benchmark-results.csv` is the normalized aggregate dataset. One row represents one measured case.
+- `benchmark-results.csv` is the normalized aggregate dataset. Its 64-field schema is identical for completed and startup-failed cases.
 - `benchmark.log` contains timestamped orchestrator and subprocess output.
 - Each JSONL file contains one record per measured request.
 - Each summary JSON contains the measurement bounds, workload settings, and request totals used by the statistics and metrics scripts.
@@ -298,9 +298,16 @@ Generated result directories are ignored by Git and should not be committed.
 
 ## Measurements
 
-The unified CSV records:
+The unified CSV contains 64 fields:
+
+- 12 experiment and configuration fields.
+- 3 case-status fields: `case_status`, `error_type`, and `error_message`.
+- 49 request, latency, throughput, vLLM, Prometheus, and GPU telemetry fields.
+
+The fields cover:
 
 - Experiment identity, hypothesis, engine settings, workload shape, and concurrency.
+- Case completion status, error type, and error message.
 - Attempted requests, successful requests, errors, and success/error rates.
 - Attempted and successful requests per second.
 - Actual prompt, output, and total token throughput.
@@ -314,6 +321,10 @@ The unified CSV records:
 - GPU utilization, framebuffer use, tensor activity, and DRAM activity.
 
 Unavailable measurements are written as empty values rather than zero. In particular, non-streaming requests do not provide TTFT, so their TTFT and per-output-token cells remain empty.
+
+A successful case is recorded with `case_status=completed`; `error_type` and `error_message` are empty. Its request, latency, throughput, vLLM, Prometheus, and GPU fields are populated, except measurements that do not apply, such as TTFT for non-streaming requests.
+
+If the `0.95` GPU-memory configuration cannot start, each skipped workload case is recorded with `case_status=startup_failed` and `error_type=configuration_startup`; performance and telemetry fields remain empty. The runner restores `0.90` and continues.
 
 Prometheus counters use `increase()` over the exact measurement duration and are evaluated at the recorded benchmark end time. DCGM queries are scoped to the Kubernetes node hosting the predictor.
 

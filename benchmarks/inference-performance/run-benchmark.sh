@@ -150,6 +150,27 @@ require_tools() {
 	command -v jq >/dev/null || fatal "jq not found"
 	command -v curl >/dev/null || fatal "curl not found"
 	command -v python3 >/dev/null || fatal "python3 not found"
+	[[ -r "${CORPUS_FILE}" ]] || fatal "Corpus file is not readable: ${CORPUS_FILE}"
+
+	python3 - <<'PY' || fatal "Install benchmark dependencies with: python3 -m pip install -r benchmarks/inference-performance/python/requirements.txt"
+import importlib.util
+import sys
+
+if sys.version_info < (3, 9):
+	raise SystemExit("Python 3.9 or newer is required.")
+
+required_modules = ("aiohttp", "requests", "transformers")
+missing_modules = [
+	module
+	for module in required_modules
+	if importlib.util.find_spec(module) is None
+]
+
+if missing_modules:
+	raise SystemExit(
+		"Missing Python modules: " + ", ".join(missing_modules)
+	)
+PY
 }
 
 configured_level() {
@@ -256,7 +277,7 @@ EOF
 init_results_files() {
 
 	if [[ ! -f "${BENCHMARK_RESULTS_FILE}" ]]; then
-		echo "timestamp,run_id,profile,profile_hypothesis,stream,prompt_tokens,max_tokens,gpu_memory_utilization,max_model_len,max_num_seqs,max_num_batched_tokens,concurrency,requests_total,successes,errors,success_rate_pct,error_rate_pct,attempted_rps,successful_rps,output_length_match_rate_pct,actual_prompt_tokens_total,actual_output_tokens_total,actual_prompt_tokens_per_sec,actual_output_tokens_per_sec,actual_total_tokens_per_sec,latency_avg_ms,latency_min_ms,latency_max_ms,latency_p50_ms,latency_p90_ms,latency_p95_ms,latency_p99_ms,error_duration_avg_ms,error_duration_p95_ms,ttft_avg_ms,ttft_p50_ms,ttft_p95_ms,ttft_p99_ms,time_per_output_token_avg_ms,time_per_output_token_p95_ms,server_output_tokens_total,server_output_tokens_per_sec,preemptions_total,prefix_cache_hits_total,requests_running_avg,requests_running_max,requests_waiting_avg,requests_waiting_max,kv_cache_pct_avg,kv_cache_pct_max,gpu_util_avg,gpu_util_max,gpu_memory_used_mib_avg,gpu_memory_used_mib_max,gpu_memory_free_mib_min,gpu_memory_pct_avg,gpu_memory_pct_max,tensor_active_avg,tensor_active_max,dram_active_avg,dram_active_max" \
+		echo "timestamp,run_id,profile,profile_hypothesis,stream,prompt_tokens,max_tokens,gpu_memory_utilization,max_model_len,max_num_seqs,max_num_batched_tokens,concurrency,case_status,error_type,error_message,requests_total,successes,errors,success_rate_pct,error_rate_pct,attempted_rps,successful_rps,output_length_match_rate_pct,actual_prompt_tokens_total,actual_output_tokens_total,actual_prompt_tokens_per_sec,actual_output_tokens_per_sec,actual_total_tokens_per_sec,latency_avg_ms,latency_min_ms,latency_max_ms,latency_p50_ms,latency_p90_ms,latency_p95_ms,latency_p99_ms,error_duration_avg_ms,error_duration_p95_ms,ttft_avg_ms,ttft_p50_ms,ttft_p95_ms,ttft_p99_ms,time_per_output_token_avg_ms,time_per_output_token_p95_ms,server_output_tokens_total,server_output_tokens_per_sec,preemptions_total,prefix_cache_hits_total,requests_running_avg,requests_running_max,requests_waiting_avg,requests_waiting_max,kv_cache_pct_avg,kv_cache_pct_max,gpu_util_avg,gpu_util_max,gpu_memory_used_mib_avg,gpu_memory_used_mib_max,gpu_memory_free_mib_min,gpu_memory_pct_avg,gpu_memory_pct_max,tensor_active_avg,tensor_active_max,dram_active_avg,dram_active_max" \
 			> "${BENCHMARK_RESULTS_FILE}"
 	fi
 }
@@ -506,6 +527,53 @@ EOF
 # Benchmark Execution
 ###############################################################################
 
+record_configuration_failure() {
+
+	local profile="$1"
+	local seqs="$2"
+	local batched="$3"
+	local gpu_memory="$4"
+	local model_len="$5"
+	local error_message="$6"
+	local prompt_tokens
+	local output_tokens
+	local stream_mode
+	local concurrency
+	local ts
+
+	for prompt_tokens in ${PROMPT_TOKEN_VALUES}; do
+		for output_tokens in ${OUTPUT_TOKEN_VALUES}; do
+			for stream_mode in ${STREAM_MODE_VALUES}; do
+				for concurrency in ${CONCURRENCY_VALUES}; do
+					ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+					jq -nr \
+						--arg timestamp "${ts}" \
+						--arg run_id "${RUN_ID}" \
+						--arg profile "${profile}" \
+						--arg hypothesis "${PROFILE_HYPOTHESIS}" \
+						--argjson stream "${stream_mode}" \
+						--argjson prompt_tokens "${prompt_tokens}" \
+						--argjson output_tokens "${output_tokens}" \
+						--argjson gpu_memory "${gpu_memory}" \
+						--argjson model_len "${model_len}" \
+						--argjson seqs "${seqs}" \
+						--argjson batched "${batched}" \
+						--argjson concurrency "${concurrency}" \
+						--arg error_message "${error_message}" '
+						[
+							$timestamp, $run_id, $profile, $hypothesis, $stream,
+							$prompt_tokens, $output_tokens, $gpu_memory, $model_len,
+							$seqs, $batched, $concurrency,
+							"startup_failed", "configuration_startup", $error_message
+						] + [range(0; 49) | null] | @csv
+					' >> "${BENCHMARK_RESULTS_FILE}"
+				done
+			done
+		done
+	done
+}
+
 run_concurrency_test() {
 
 	local profile="$1"
@@ -633,12 +701,14 @@ PY
 		--argjson seqs "${seqs}" \
 		--argjson batched "${batched}" \
 		--argjson concurrency "${concurrency}" \
+		--arg case_status "completed" \
 		--argjson stats "${stats_json}" \
 		--argjson metrics "${metrics_json}" '
 		[
 			$timestamp, $run_id, $profile, $hypothesis, $stream,
 			$prompt_tokens, $output_tokens, $gpu_memory, $model_len,
 			$seqs, $batched, $concurrency,
+			$case_status, "", "",
 			$stats.requests_total, $stats.successes, $stats.errors,
 			$stats.success_rate_pct, $stats.error_rate_pct,
 			$stats.attempted_rps, $stats.successful_rps,
@@ -703,7 +773,27 @@ run_profile() {
 			for model_len in ${MAX_MODEL_LEN_VALUES}; do
 
 				if [[ "${PLAN_ONLY}" != "true" ]]; then
-					patch_isvc_profile "${seqs}" "${batched}" "${gpu_memory}" "${model_len}"
+					if [[ "${gpu_memory}" == "0.95" ]]; then
+						if ! (
+							patch_isvc_profile \
+								"${seqs}" "${batched}" \
+								"${gpu_memory}" "${model_len}"
+						); then
+							local failure_message
+							failure_message="vLLM failed to become ready with gpu_memory_utilization=${gpu_memory}"
+							warn "Configuration startup_failed profile=${PROFILE_ID} seqs=${seqs} batched=${batched} gpu_memory=${gpu_memory} model_len=${model_len}; restoring gpu_memory=0.90 and continuing"
+							record_configuration_failure \
+								"${PROFILE_ID}" "${seqs}" "${batched}" \
+								"${gpu_memory}" "${model_len}" "${failure_message}"
+							patch_isvc_profile \
+								"${seqs}" "${batched}" \
+								"0.90" "${model_len}"
+							continue
+						fi
+						resolve_predictor_node
+					else
+						patch_isvc_profile "${seqs}" "${batched}" "${gpu_memory}" "${model_len}"
+					fi
 					ensure_infer_endpoint
 				fi
 
