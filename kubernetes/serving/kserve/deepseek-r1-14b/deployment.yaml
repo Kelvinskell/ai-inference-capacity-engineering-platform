@@ -36,6 +36,8 @@ spec:
           - "16"
           - --max-model-len
           - "15000"
+          - --reasoning-parser
+          - deepseek_r1
 
         ports:
           - name: http
