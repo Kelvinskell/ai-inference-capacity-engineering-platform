@@ -96,13 +96,13 @@ class CorpusPromptFactory:
 
         prompt_tokens = prefix_tokens + body_tokens
         actual_tokens = []
+        prompt = self.tokenizer.decode(
+            prompt_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
 
         for _ in range(8):
-            prompt = self.tokenizer.decode(
-                prompt_tokens,
-                skip_special_tokens=True,
-                clean_up_tokenization_spaces=False,
-            )
             actual_tokens = self.tokenizer.encode(
                 prompt,
                 add_special_tokens=False,
@@ -112,11 +112,29 @@ class CorpusPromptFactory:
                 return prompt
 
             if len(actual_tokens) > self.prompt_tokens:
-                prompt_tokens = actual_tokens[:self.prompt_tokens]
+                prompt = self.tokenizer.decode(
+                    actual_tokens[:self.prompt_tokens],
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False,
+                )
                 continue
 
-            missing = self.prompt_tokens - len(actual_tokens)
-            prompt_tokens = actual_tokens + body_tokens[:missing]
+            for filler_token in self.corpus_tokens:
+                suffix = self.tokenizer.decode(
+                    [filler_token],
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False,
+                )
+                candidate = prompt + suffix
+                candidate_length = len(self.tokenizer.encode(
+                    candidate,
+                    add_special_tokens=False,
+                ))
+                if len(actual_tokens) < candidate_length <= self.prompt_tokens:
+                    prompt = candidate
+                    break
+            else:
+                break
 
         raise ValueError(
             "Unable to construct a corpus prompt at the requested token count: "
