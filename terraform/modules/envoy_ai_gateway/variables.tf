@@ -31,7 +31,7 @@ variable "envoy_gateway_chart" {
 variable "envoy_gateway_chart_version" {
   description = "Pinned Envoy Gateway Helm chart version compatible with Envoy AI Gateway."
   type        = string
-  default     = "v1.8.1"
+  default     = "v1.8.3"
 
   validation {
     condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$", var.envoy_gateway_chart_version))

@@ -13,6 +13,18 @@ resource "helm_release" "envoy_gateway" {
   atomic          = true
   cleanup_on_fail = true
   timeout         = var.helm_timeout_seconds
+
+  values = [
+    yamlencode({
+      config = {
+        envoyGateway = {
+          extensionApis = {
+            enableBackend = true
+          }
+        }
+      }
+    })
+  ]
 }
 
 # Install Envoy AI Gateway CRDs before starting its controller.

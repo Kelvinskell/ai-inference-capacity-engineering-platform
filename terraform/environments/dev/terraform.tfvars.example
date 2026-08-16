@@ -36,6 +36,6 @@ prometheus_storage_class            = "auto-ebs-gp3"
 
 # Envoy AI Gateway configuration
 enable_envoy_ai_gateway          = true
-envoy_gateway_chart_version      = "v1.8.1"
+envoy_gateway_chart_version      = "v1.8.3"
 envoy_ai_gateway_chart_version   = "v1.0.0"
 
