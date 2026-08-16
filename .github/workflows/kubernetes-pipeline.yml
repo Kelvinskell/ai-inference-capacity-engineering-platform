@@ -73,6 +73,7 @@ jobs:
           kubectl apply -f kubernetes/observability
 
           # Wait for the model uploader job to complete before applying model-serving resources.
+          echo "Waiting up to 20 minutes for s3-model-uploader job to finish before applying model-serving resources..."
           kubectl wait \
             --namespace model-storage \
             --for=condition=complete \

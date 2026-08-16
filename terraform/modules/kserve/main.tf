@@ -84,6 +84,17 @@ resource "helm_release" "istio_ingressgateway" {
   cleanup_on_fail = true
   timeout         = var.helm_timeout_seconds
 
+  values = [
+    yamlencode({
+      service = {
+        annotations = {
+          "service.beta.kubernetes.io/aws-load-balancer-scheme"     = "internet-facing"
+          "service.beta.kubernetes.io/aws-load-balancer-attributes" = "load_balancing.cross_zone.enabled=true"
+        }
+      }
+    })
+  ]
+
   depends_on = [helm_release.istiod]
 }
 
