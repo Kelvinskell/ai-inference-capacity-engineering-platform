@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: envoy-ai-gateway-api-keys
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+type: Opaque
+stringData:
+  development-client: notforprod
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: envoy-ai-gateway-api-key
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: deepseek-r1-14b
+  apiKeyAuth:
+    credentialRefs:
+      - group: ""
+        kind: Secret
+        name: envoy-ai-gateway-api-keys
+    extractFrom:
+      - headers:
+          - Authorization
+    sanitize: true
+    forwardClientIDHeader: x-client-id
