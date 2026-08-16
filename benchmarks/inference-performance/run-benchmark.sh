@@ -93,7 +93,6 @@ INFER_API_KEY="${INFER_API_KEY:-notforprod}"
 
 AUTO_PORT_FORWARD_INFER="${AUTO_PORT_FORWARD_INFER:-true}"
 ENVOY_NAMESPACE="${ENVOY_NAMESPACE:-envoy-gateway-system}"
-ENVOY_GATEWAY_NAMESPACE="${ENVOY_GATEWAY_NAMESPACE:-llm-serving}"
 ENVOY_GATEWAY_NAME="${ENVOY_GATEWAY_NAME:-envoy-ai-gateway}"
 ENVOY_SERVICE="${ENVOY_SERVICE:-}"
 
@@ -300,23 +299,18 @@ resolve_envoy_service() {
 		return 0
 	fi
 
-	local service_prefix
 	local services
 	local service_count
 
-	service_prefix="envoy-${ENVOY_GATEWAY_NAMESPACE}-${ENVOY_GATEWAY_NAME}-"
 	services="$(
-		kubectl -n "${ENVOY_NAMESPACE}" get services -o json |
-			jq -r --arg prefix "${service_prefix}" '
-				.items[]
-				| select(.metadata.name | startswith($prefix))
-				| .metadata.name
-			'
+		kubectl -n "${ENVOY_NAMESPACE}" get services \
+			-l "gateway.envoyproxy.io/owning-gateway-name=${ENVOY_GATEWAY_NAME}" \
+			-o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
 	)"
 	service_count="$(printf '%s\n' "${services}" | grep -c . || true)"
 
 	(( service_count == 1 )) \
-		|| fatal "Expected one Envoy Service with prefix ${service_prefix}, found ${service_count}; set ENVOY_SERVICE explicitly"
+		|| fatal "Expected one Envoy Service owned by Gateway ${ENVOY_GATEWAY_NAME}, found ${service_count}; set ENVOY_SERVICE explicitly"
 
 	ENVOY_SERVICE="${services}"
 	log "Discovered Envoy Service=${ENVOY_SERVICE}"
