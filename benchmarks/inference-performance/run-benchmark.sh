@@ -44,6 +44,7 @@ source "${MATRIX_CONFIG}"
 
 RESULTS_DIR="${SCRIPT_DIR}/results"
 REQUEST_RESULTS_DIR="${RESULTS_DIR}/request-level"
+LOCAL_TOKENIZER_DIR="${RESULTS_DIR}/tokenizer"
 
 BENCHMARK_RESULTS_FILE="${RESULTS_DIR}/benchmark-results.csv"
 LOG_FILE="${RESULTS_DIR}/benchmark.log"
@@ -102,8 +103,8 @@ PROM_SERVICE="${PROM_SERVICE:-kube-prometheus-stack-prometheus}"
 
 MODEL_PATH="${MODEL_PATH:-/models}"
 MODEL_ID="${MODEL_ID:-/models}"
-TOKENIZER_ID="${TOKENIZER_ID:-casperhansen/deepseek-r1-distill-qwen-14b-awq}"
-TOKENIZER_REVISION="${TOKENIZER_REVISION:-bc43ec1bbf08de53452630806d5989208b4186db}"
+TOKENIZER_ID="${TOKENIZER_ID:-${LOCAL_TOKENIZER_DIR}}"
+TOKENIZER_REVISION="${TOKENIZER_REVISION:-}"
 
 POD_REGEX="${POD_REGEX:-${INFERENCE_SERVICE}-predictor-.*}"
 
@@ -178,6 +179,69 @@ configured_level() {
 	local levels="$2"
 
 	[[ " ${levels} " == *" ${selected} "* ]]
+}
+
+ensure_local_tokenizer() {
+
+	local tokenizer_files=(
+		config.json
+		special_tokens_map.json
+		tokenizer_config.json
+		tokenizer.json
+	)
+	local tokenizer_file
+	local predictor_pod
+	local temporary_file
+	local needs_copy="false"
+
+	for tokenizer_file in "${tokenizer_files[@]}"; do
+		if [[ ! -s "${LOCAL_TOKENIZER_DIR}/${tokenizer_file}" ]]; then
+			needs_copy="true"
+			break
+		fi
+	done
+
+	if [[ "${needs_copy}" == "true" ]]; then
+		predictor_pod="$(
+			kubectl -n "${NAMESPACE}" get pods \
+				-l "serving.kserve.io/inferenceservice=${INFERENCE_SERVICE}" \
+				-o json |
+				jq -r '
+					.items[]
+					| select(any(.status.conditions[]?; .type == "Ready" and .status == "True"))
+					| .metadata.name
+				' | head -n 1
+		)"
+
+		[[ -n "${predictor_pod}" ]] \
+			|| fatal "No Ready predictor pod is available to provide tokenizer files"
+
+		mkdir -p "${LOCAL_TOKENIZER_DIR}"
+		log "Caching tokenizer files from pod=${predictor_pod}"
+
+		for tokenizer_file in "${tokenizer_files[@]}"; do
+			temporary_file="${LOCAL_TOKENIZER_DIR}/.${tokenizer_file}.tmp"
+			kubectl -n "${NAMESPACE}" exec "${predictor_pod}" \
+				-c kserve-container -- \
+				cat "${MODEL_PATH}/${tokenizer_file}" > "${temporary_file}" \
+				|| fatal "Unable to copy tokenizer file ${tokenizer_file} from predictor"
+			[[ -s "${temporary_file}" ]] \
+				|| fatal "Tokenizer file ${tokenizer_file} copied from predictor is empty"
+			mv "${temporary_file}" "${LOCAL_TOKENIZER_DIR}/${tokenizer_file}"
+		done
+	fi
+
+	python3 - "${LOCAL_TOKENIZER_DIR}" <<'PY' \
+		|| fatal "Unable to load tokenizer from ${LOCAL_TOKENIZER_DIR}"
+import sys
+from transformers import AutoTokenizer
+
+AutoTokenizer.from_pretrained(sys.argv[1], local_files_only=True)
+PY
+
+	TOKENIZER_ID="${LOCAL_TOKENIZER_DIR}"
+	TOKENIZER_REVISION=""
+	log "Tokenizer ready path=${TOKENIZER_ID}"
 }
 
 validate_profile() {
@@ -871,6 +935,7 @@ main() {
 	RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 	init_logging
 	init_results_files
+	ensure_local_tokenizer
 	ensure_prom_endpoint
 	run_requested_profiles "${requested}"
 	log "Benchmark complete run_id=${RUN_ID}"

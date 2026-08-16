@@ -41,7 +41,8 @@ Prometheus and DCGM measurements remain scoped to the predictor pod and its GPU 
 | InferenceService | `deepseek-r1-14b` |
 | Predictor Service | `deepseek-r1-14b-predictor` |
 | Model artifact | `casperhansen/deepseek-r1-distill-qwen-14b-awq` |
-| Model/tokenizer revision | `bc43ec1bbf08de53452630806d5989208b4186db` |
+| Model revision | `bc43ec1bbf08de53452630806d5989208b4186db` |
+| Tokenizer source | Predictor `/models` mount backed by S3 |
 | vLLM model path and API model ID | `/models` |
 | Inference URL | `http://127.0.0.1:18080/v1/completions` |
 | Development API key | `notforprod` |
@@ -80,7 +81,7 @@ source .venv/bin/activate
 python3 -m pip install -r benchmarks/inference-performance/python/requirements.txt
 ```
 
-The `transformers` dependency loads the pinned Hugging Face tokenizer. Ensure the tokenizer is already cached or that the machine can reach Hugging Face before beginning a long run.
+Before changing the InferenceService, the runner copies `config.json`, `special_tokens_map.json`, `tokenizer_config.json`, and `tokenizer.json` from the Ready predictor's `/models` mount into `results/tokenizer`. The load generator uses that local cache with `local_files_only=True`; benchmark execution does not download tokenizer data from Hugging Face.
 
 ## Cluster Validation
 
@@ -413,7 +414,7 @@ kubectl -n llm-serving get pod \
 
 ### Tokenizer cannot be loaded
 
-Activate the environment containing `transformers`, verify the pinned tokenizer revision is accessible, and ensure the Hugging Face cache is populated before an offline run.
+Confirm that a Ready predictor pod can read `config.json`, `special_tokens_map.json`, `tokenizer_config.json`, and `tokenizer.json` from `/models`. The runner must cache and validate these files before it changes any Kubernetes resources.
 
 ### Benchmark is interrupted
 
