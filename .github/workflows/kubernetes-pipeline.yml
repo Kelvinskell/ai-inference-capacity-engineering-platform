@@ -82,3 +82,6 @@ jobs:
 
           # Model-serving resources.
           kubectl apply -f kubernetes/serving/kserve/deepseek-r1-14b
+
+          # Gateway resources.
+          kubectl apply -f kubernetes/gateway
