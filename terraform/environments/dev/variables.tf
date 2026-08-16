@@ -185,3 +185,32 @@ variable "enable_kserve_module" {
   type        = bool
   default     = true
 }
+
+# Envoy AI Gateway
+variable "enable_envoy_ai_gateway" {
+  description = "Enable Envoy Gateway and Envoy AI Gateway installation."
+  type        = bool
+  default     = true
+}
+
+variable "envoy_gateway_chart_version" {
+  description = "Pinned Envoy Gateway chart version compatible with Envoy AI Gateway."
+  type        = string
+  default     = "v1.8.1"
+
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$", var.envoy_gateway_chart_version))
+    error_message = "envoy_gateway_chart_version must be a stable semantic version prefixed with v."
+  }
+}
+
+variable "envoy_ai_gateway_chart_version" {
+  description = "Pinned Envoy AI Gateway chart version."
+  type        = string
+  default     = "v1.0.0"
+
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$", var.envoy_ai_gateway_chart_version))
+    error_message = "envoy_ai_gateway_chart_version must be a stable semantic version prefixed with v."
+  }
+}
