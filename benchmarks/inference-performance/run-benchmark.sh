@@ -88,9 +88,18 @@ NAMESPACE="${NAMESPACE:-llm-serving}"
 INFERENCE_SERVICE="${INFERENCE_SERVICE:-deepseek-r1-14b}"
 
 PROM_URL="${PROM_URL:-http://127.0.0.1:9090}"
-INFER_URL="${INFER_URL:-http://127.0.0.1:8000/v1/completions}"
+INFER_URL="${INFER_URL:-http://127.0.0.1:18080/v1/completions}"
+INFER_API_KEY="${INFER_API_KEY:-notforprod}"
 
 AUTO_PORT_FORWARD_INFER="${AUTO_PORT_FORWARD_INFER:-true}"
+ENVOY_NAMESPACE="${ENVOY_NAMESPACE:-envoy-gateway-system}"
+ENVOY_GATEWAY_NAMESPACE="${ENVOY_GATEWAY_NAMESPACE:-llm-serving}"
+ENVOY_GATEWAY_NAME="${ENVOY_GATEWAY_NAME:-envoy-ai-gateway}"
+ENVOY_SERVICE="${ENVOY_SERVICE:-}"
+
+AUTO_PORT_FORWARD_PROM="${AUTO_PORT_FORWARD_PROM:-true}"
+PROM_NAMESPACE="${PROM_NAMESPACE:-monitoring}"
+PROM_SERVICE="${PROM_SERVICE:-kube-prometheus-stack-prometheus}"
 
 MODEL_PATH="${MODEL_PATH:-/models}"
 MODEL_ID="${MODEL_ID:-/models}"
@@ -111,6 +120,7 @@ READY_WAIT_TIMEOUT_SECONDS="${READY_WAIT_TIMEOUT_SECONDS:-180}"
 POST_READY_SETTLE_SECONDS="${POST_READY_SETTLE_SECONDS:-240}"
 
 PF_INFER_PID=""
+PF_PROM_PID=""
 PREDICTOR_NODE=""
 
 ###############################################################################
@@ -121,6 +131,10 @@ cleanup() {
 
 	if [[ -n "${PF_INFER_PID}" ]]; then
 		kill "${PF_INFER_PID}" >/dev/null 2>&1 || true
+	fi
+
+	if [[ -n "${PF_PROM_PID}" ]]; then
+		kill "${PF_PROM_PID}" >/dev/null 2>&1 || true
 	fi
 }
 
@@ -259,6 +273,68 @@ infer_health_url() {
 	echo "${INFER_URL%/v1/completions}/health"
 }
 
+resolve_envoy_service() {
+
+	if [[ -n "${ENVOY_SERVICE}" ]]; then
+		return 0
+	fi
+
+	local service_prefix
+	local services
+	local service_count
+
+	service_prefix="envoy-${ENVOY_GATEWAY_NAMESPACE}-${ENVOY_GATEWAY_NAME}-"
+	services="$(
+		kubectl -n "${ENVOY_NAMESPACE}" get services -o json |
+			jq -r --arg prefix "${service_prefix}" '
+				.items[]
+				| select(.metadata.name | startswith($prefix))
+				| .metadata.name
+			'
+	)"
+	service_count="$(printf '%s\n' "${services}" | grep -c . || true)"
+
+	(( service_count == 1 )) \
+		|| fatal "Expected one Envoy Service with prefix ${service_prefix}, found ${service_count}; set ENVOY_SERVICE explicitly"
+
+	ENVOY_SERVICE="${services}"
+	log "Discovered Envoy Service=${ENVOY_SERVICE}"
+}
+
+is_local_prom_url() {
+	[[ "${PROM_URL}" =~ ^http://(127\.0\.0\.1|localhost): ]]
+}
+
+ensure_prom_endpoint() {
+
+	if [[ "${AUTO_PORT_FORWARD_PROM}" != "true" ]] || ! is_local_prom_url; then
+		return 0
+	fi
+
+	local ready_url
+	ready_url="${PROM_URL%/}/-/ready"
+
+	if curl -s --max-time 3 -f "${ready_url}" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	log "Recovering Prometheus endpoint"
+
+	[[ -n "${PF_PROM_PID}" ]] && \
+		kill "${PF_PROM_PID}" >/dev/null 2>&1 || true
+
+	kubectl -n "${PROM_NAMESPACE}" \
+		port-forward "svc/${PROM_SERVICE}" 9090:9090 \
+		>/tmp/benchmark-prometheus-portforward.log 2>&1 &
+
+	PF_PROM_PID="$!"
+
+	sleep 5
+
+	curl -s --max-time 5 -f "${ready_url}" >/dev/null \
+		|| fatal "Unable to recover Prometheus endpoint"
+}
+
 ensure_infer_endpoint() {
 
 	if [[ "${AUTO_PORT_FORWARD_INFER}" != "true" ]]; then
@@ -276,6 +352,7 @@ ensure_infer_endpoint() {
 		-s \
 		--max-time 3 \
 		-f \
+		-H "Authorization: Bearer ${INFER_API_KEY}" \
 		"${health_url}" >/dev/null 2>&1; then
 		return 0
 	fi
@@ -285,11 +362,10 @@ ensure_infer_endpoint() {
 	[[ -n "${PF_INFER_PID}" ]] && \
 		kill "${PF_INFER_PID}" >/dev/null 2>&1 || true
 
-	local svc_name
-	svc_name="${INFERENCE_SERVICE}-predictor"
+	resolve_envoy_service
 
-	kubectl -n "${NAMESPACE}" \
-		port-forward "svc/${svc_name}" 8000:80 \
+	kubectl -n "${ENVOY_NAMESPACE}" \
+		port-forward "svc/${ENVOY_SERVICE}" 18080:80 \
 		>/tmp/benchmark-portforward.log 2>&1 &
 
 	PF_INFER_PID="$!"
@@ -300,6 +376,7 @@ ensure_infer_endpoint() {
 		-s \
 		--max-time 5 \
 		-f \
+		-H "Authorization: Bearer ${INFER_API_KEY}" \
 		"${health_url}" >/dev/null \
 		|| fatal "Unable to recover inference endpoint"
 }
@@ -456,6 +533,7 @@ run_concurrency_test() {
 
 	export PYTHON_DIR="${PYTHON_DIR:-${SCRIPT_DIR}/python}"
 	export INFER_URL
+	export INFER_API_KEY
 	export MODEL_ID
 	export CORPUS_FILE
 	export PROMPT_TOKENS="${prompt_tokens}"
@@ -481,6 +559,7 @@ cmd = [
     "python3",
     os.path.join(os.environ["PYTHON_DIR"], "loadgen.py"),
     "--url", os.environ["INFER_URL"],
+	"--api-key", os.environ["INFER_API_KEY"],
 	"--model", os.environ["MODEL_ID"],
 	"--corpus-file", os.environ["CORPUS_FILE"],
 	"--prompt-tokens", os.environ["PROMPT_TOKENS"],
@@ -528,6 +607,8 @@ PY
 			--input "${request_file}" \
 			--summary-file "${profile_summary_file}"
 	)"
+
+	ensure_prom_endpoint
 
 	metrics_json="$(
 		python3 "${PYTHON_DIR}/metrics.py" \
@@ -706,6 +787,7 @@ main() {
 	RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 	init_logging
 	init_results_files
+	ensure_prom_endpoint
 	run_requested_profiles "${requested}"
 	log "Benchmark complete run_id=${RUN_ID}"
 }

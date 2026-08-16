@@ -292,6 +292,7 @@ async def run_phase(
     duration_seconds,
     concurrency,
     url,
+    api_key,
     payload,
     prompt_factory,
     request_id_offset,
@@ -331,7 +332,8 @@ async def run_phase(
     )
 
     async with aiohttp.ClientSession(
-        connector=connector
+        connector=connector,
+        headers={"Authorization": f"Bearer {api_key}"},
     ) as session:
 
         async def worker():
@@ -485,6 +487,11 @@ async def main():
 
     parser.add_argument(
         "--url",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--api-key",
         required=True,
     )
 
@@ -645,6 +652,7 @@ async def main():
         duration_seconds=args.warmup,
         concurrency=args.concurrency,
         url=args.url,
+        api_key=args.api_key,
         payload=payload,
         prompt_factory=prompt_factory,
         request_id_offset=0,
@@ -677,6 +685,7 @@ async def main():
             duration_seconds=args.duration,
             concurrency=args.concurrency,
             url=args.url,
+            api_key=args.api_key,
             payload=payload,
             prompt_factory=prompt_factory,
             request_id_offset=1_000_000_000,
