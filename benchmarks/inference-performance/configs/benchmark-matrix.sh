@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Full Phase 3 search space used to validate named profile files.
+# Full search space used to validate named profile files.
 # 39,872 input tokens plus 128 output tokens fills a 40,000-token context.
 export PROMPT_TOKEN_LEVELS="128 1024 4096 8192 15000 30000 39872"
 export OUTPUT_TOKEN_LEVELS="128 512 1024"

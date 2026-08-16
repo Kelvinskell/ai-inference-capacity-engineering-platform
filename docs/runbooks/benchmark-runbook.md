@@ -48,7 +48,10 @@ Prometheus and DCGM measurements remain scoped to the predictor pod and its GPU 
 | Prometheus URL | `http://127.0.0.1:9090` |
 | Warmup per case | 120 seconds |
 | Measurement per case | 480 seconds |
-| Request timeout | 120 seconds |
+| Load-generator request timeout | 380 seconds |
+| Envoy request timeout | 420 seconds |
+| Envoy HTTP stream-idle timeout | 420 seconds |
+| AWS NLB TCP idle timeout | 480 seconds |
 
 The checked-in API key is for development validation only. Set `INFER_API_KEY` to the active credential if the Secret has been changed.
 
@@ -232,12 +235,14 @@ Common environment variables are:
 | `PROM_URL` | `http://127.0.0.1:9090` | Prometheus endpoint |
 | `WARMUP_SECONDS` | `120` | Warmup duration per case |
 | `DURATION_SECONDS` | `480` | Measurement duration per case |
-| `REQUEST_TIMEOUT_SECONDS` | `120` | Per-request timeout |
+| `REQUEST_TIMEOUT_SECONDS` | `380` | Per-request load-generator timeout |
 | `POST_READY_SETTLE_SECONDS` | `240` | Stabilization delay after predictor readiness |
 | `ENVOY_SERVICE` | discovered | Explicit generated Envoy Service override |
 | `AUTO_PORT_FORWARD_INFER` | `true` | Manage the Envoy port-forward |
 | `AUTO_PORT_FORWARD_PROM` | `true` | Manage the Prometheus port-forward |
 | `MODEL_ID` | `/models` | Model identifier sent in API requests |
+
+The timeout chain is ordered as load generator (380 seconds), Envoy (420 seconds), and NLB (480 seconds). Requests that exceed 380 seconds are classified consistently as client-side benchmark timeouts, while the gateway and load balancer remain available beyond that cutoff.
 
 Example using externally managed endpoints:
 

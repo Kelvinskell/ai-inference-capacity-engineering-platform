@@ -43,7 +43,7 @@ spec:
       envoyService:
         name: envoy-ai-gateway
         annotations:
-          service.beta.kubernetes.io/aws-load-balancer-attributes: load_balancing.cross_zone.enabled=true,tcp.idle_timeout.seconds=420
+          service.beta.kubernetes.io/aws-load-balancer-attributes: load_balancing.cross_zone.enabled=true,tcp.idle_timeout.seconds=480
           service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
           service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
         allocateLoadBalancerNodePorts: false
@@ -64,6 +64,6 @@ spec:
       name: envoy-ai-gateway
   timeout:
     http:
-      streamIdleTimeout: 360s
+      streamIdleTimeout: 420s
   connection:
     bufferLimit: 50Mi
