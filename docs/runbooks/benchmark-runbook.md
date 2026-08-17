@@ -146,17 +146,17 @@ The 39,872-token prompt is paired with 128 output tokens to fill a 40,000-token 
 | Profile | Cases | Primary variable |
 |---|---:|---|
 | `concurrency-saturation` | 7 | Concurrency from 1 through 100 |
-| `prompt-length-scaling` | 4 | Four representative prompt lengths at concurrency 20 |
-| `output-length-scaling` | 3 | Three output lengths at concurrency 20 |
-| `gpu-memory-scaling` | 3 | Three GPU memory targets at concurrency 20 |
-| `model-length-scaling` | 3 | Three model-length limits at concurrency 20 |
-| `scheduler-batching` | 4 | Four sequence/batched-token configurations at concurrency 20 |
-| `streaming-comparison` | 2 | Streaming and non-streaming at concurrency 20 |
-| **Complete suite** | **26** | All named profiles |
+| `prompt-length-scaling` | 49 | Seven prompt lengths across seven concurrency levels |
+| `output-length-scaling` | 21 | Three output lengths across seven concurrency levels |
+| `gpu-memory-scaling` | 28 | Four GPU memory targets across seven concurrency levels |
+| `model-length-scaling` | 28 | Four model-length limits across seven concurrency levels |
+| `scheduler-batching` | 42 | Six sequence/batched-token configurations across seven concurrency levels |
+| `streaming-comparison` | 14 | Streaming and non-streaming across seven concurrency levels |
+| **Complete suite** | **189** | All named profiles |
 
 Profiles are hypothesis-driven and execute sequentially. They are not run in parallel.
 
-At the default 30-second warmup and 480-second measurement per case, the complete suite contains 3 hours and 41 minutes of request activity. Predictor restarts and stabilization add further runtime.
+At the default 10 minutes of request activity per case, the complete suite contains 31.5 hours of warmup and measurement time. Predictor restarts and stabilization add further runtime.
 
 ## Prompt and Output Control
 
