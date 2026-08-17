@@ -112,6 +112,8 @@ WARMUP_SECONDS="${WARMUP_SECONDS:-30}"
 DURATION_SECONDS="${DURATION_SECONDS:-480}"
 
 REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-380}"
+METRICS_RETRY_ATTEMPTS="${METRICS_RETRY_ATTEMPTS:-3}"
+METRICS_RETRY_DELAY_SECONDS="${METRICS_RETRY_DELAY_SECONDS:-15}"
 
 TEMPERATURE="${TEMPERATURE:-0.2}"
 
@@ -736,15 +738,28 @@ PY
 
 	ensure_prom_endpoint
 
-	metrics_json="$(
-		python3 "${PYTHON_DIR}/metrics.py" \
-			--prom-url "${PROM_URL}" \
-			--namespace "${NAMESPACE}" \
-			--pod-regex "${POD_REGEX}" \
-			--gpu-hostname "${PREDICTOR_NODE}" \
-			--start "${run_start}" \
-			--end "${run_end}"
-	)"
+	local metrics_attempt
+	for ((metrics_attempt = 1; metrics_attempt <= METRICS_RETRY_ATTEMPTS; metrics_attempt++)); do
+		if metrics_json="$(
+			python3 "${PYTHON_DIR}/metrics.py" \
+				--prom-url "${PROM_URL}" \
+				--namespace "${NAMESPACE}" \
+				--pod-regex "${POD_REGEX}" \
+				--gpu-hostname "${PREDICTOR_NODE}" \
+				--start "${run_start}" \
+				--end "${run_end}"
+		)"; then
+			break
+		fi
+
+		if ((metrics_attempt == METRICS_RETRY_ATTEMPTS)); then
+			fatal "Prometheus metrics collection failed after ${METRICS_RETRY_ATTEMPTS} attempts"
+		fi
+
+		warn "Prometheus metrics collection attempt ${metrics_attempt}/${METRICS_RETRY_ATTEMPTS} failed; retrying in ${METRICS_RETRY_DELAY_SECONDS}s"
+		sleep "${METRICS_RETRY_DELAY_SECONDS}"
+		ensure_prom_endpoint
+	done
 
 	jq -nr \
 		--arg timestamp "${ts}" \
