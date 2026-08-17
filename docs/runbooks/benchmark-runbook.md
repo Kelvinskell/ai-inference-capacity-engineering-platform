@@ -128,7 +128,7 @@ Automatic forwarding is skipped when the configured URL is not local or when its
 
 ## Benchmark Matrix
 
-The allowed search space is defined in [benchmarks/inference-performance/configs/benchmark-matrix.sh](../../benchmarks/inference-performance/configs/benchmark-matrix.sh):
+The validation allowlist is defined in [benchmarks/inference-performance/configs/benchmark-matrix.sh](../../benchmarks/inference-performance/configs/benchmark-matrix.sh). It does not define the execution plan or case count. Active `configs/profiles/*.sh` files define the cases; files ending in `.sh.disabled` are excluded.
 
 | Dimension | Allowed values |
 |---|---|
@@ -145,18 +145,17 @@ The 39,872-token prompt is paired with 128 output tokens to fill a 40,000-token 
 
 | Profile | Cases | Primary variable |
 |---|---:|---|
-| `concurrency-saturation` | 7 | Concurrency from 1 through 100 |
-| `prompt-length-scaling` | 49 | Seven prompt lengths across seven concurrency levels |
-| `output-length-scaling` | 21 | Three output lengths across seven concurrency levels |
-| `gpu-memory-scaling` | 28 | Four GPU memory targets across seven concurrency levels |
-| `model-length-scaling` | 28 | Four model-length limits across seven concurrency levels |
-| `scheduler-batching` | 42 | Six sequence/batched-token configurations across seven concurrency levels |
-| `streaming-comparison` | 14 | Streaming and non-streaming across seven concurrency levels |
-| **Complete suite** | **189** | All named profiles |
+| `concurrency-saturation` | 5 | Concurrency `1 5 10 20 40` |
+| `prompt-length-scaling` | 10 | Five prompt lengths at concurrency `1` and `10` |
+| `output-length-scaling` | 3 | Three output lengths at concurrency `20` |
+| `scheduler-batching` | 4 | Four scheduler configurations at concurrency `20` |
+| **Active suite** | **22** | All active `.sh` profiles |
+
+`gpu-memory-scaling`, `model-length-scaling`, and `streaming-comparison` are currently disabled with the `.sh.disabled` suffix.
 
 Profiles are hypothesis-driven and execute sequentially. They are not run in parallel.
 
-At the default 10 minutes of request activity per case, the complete suite contains 31.5 hours of warmup and measurement time. Predictor restarts and stabilization add further runtime.
+At the default 30-second warmup and 480-second measurement, the active suite contains 3 hours and 7 minutes of request activity. Predictor restarts, readiness, and stabilization add further runtime.
 
 ## Prompt and Output Control
 
@@ -189,7 +188,7 @@ Plan one profile:
 bash benchmarks/inference-performance/run-benchmark.sh plan concurrency-saturation
 ```
 
-The full plan should report 189 cases.
+The full plan should report 22 cases.
 
 ## Run the Benchmark
 
@@ -223,7 +222,7 @@ POST_READY_SETTLE_SECONDS=30 \
 bash benchmarks/inference-performance/run-benchmark.sh concurrency-saturation
 ```
 
-This still executes all seven concurrency cases in the profile. It is intended to validate routing, authentication, tokenizer loading, result generation, and metric queries rather than produce trustworthy capacity conclusions.
+This still executes all five concurrency cases in the profile. It is intended to validate routing, authentication, tokenizer loading, result generation, and metric queries rather than produce trustworthy capacity conclusions.
 
 ## Runtime Overrides
 
@@ -234,9 +233,11 @@ Common environment variables are:
 | `INFER_API_KEY` | `notforprod` | Envoy bearer credential |
 | `INFER_URL` | `http://127.0.0.1:18080/v1/completions` | OpenAI-compatible completion endpoint |
 | `PROM_URL` | `http://127.0.0.1:9090` | Prometheus endpoint |
-| `WARMUP_SECONDS` | `120` | Warmup duration per case |
+| `WARMUP_SECONDS` | `30` | Warmup duration per case |
 | `DURATION_SECONDS` | `480` | Measurement duration per case |
 | `REQUEST_TIMEOUT_SECONDS` | `380` | Per-request load-generator timeout |
+| `METRICS_RETRY_ATTEMPTS` | `3` | Prometheus collection attempts after a completed case |
+| `METRICS_RETRY_DELAY_SECONDS` | `15` | Delay between Prometheus collection attempts |
 | `POST_READY_SETTLE_SECONDS` | `240` | Stabilization delay after predictor readiness |
 | `ENVOY_SERVICE` | discovered | Explicit generated Envoy Service override |
 | `AUTO_PORT_FORWARD_INFER` | `true` | Manage the Envoy port-forward |
