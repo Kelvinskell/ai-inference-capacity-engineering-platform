@@ -90,3 +90,10 @@ module "envoy_ai_gateway" {
 
   depends_on = [module.eks]
 }
+
+# Deploy KEDA autoscaling operator
+module "keda" {
+  source = "../../modules/keda"
+  
+  depends_on = [module.eks]
+}
