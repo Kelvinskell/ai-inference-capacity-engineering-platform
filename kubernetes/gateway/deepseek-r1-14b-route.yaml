@@ -43,6 +43,6 @@ spec:
       name: envoy-ai-gateway
   rules:
     - timeouts:
-        request: 360s
+        request: 420s
       backendRefs:
         - name: deepseek-r1-14b

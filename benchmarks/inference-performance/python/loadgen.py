@@ -52,9 +52,16 @@ class CorpusPromptFactory:
         transformers = importlib.import_module("transformers")
 
         self.prompt_tokens = prompt_tokens
+        tokenizer_path = Path(tokenizer_id)
+
+        if not tokenizer_path.is_dir():
+            raise ValueError(
+                f"Local tokenizer directory not found: {tokenizer_path}"
+            )
+
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            tokenizer_id,
-            revision=tokenizer_revision,
+            tokenizer_path,
+            local_files_only=True,
         )
 
         corpus_text = Path(corpus_file).read_text(encoding="utf-8")
@@ -581,14 +588,9 @@ async def main():
     prompt_factory = None
 
     if args.corpus_file:
-        if not all((
-            args.prompt_tokens,
-            args.tokenizer_id,
-            args.tokenizer_revision,
-        )):
+        if not all((args.prompt_tokens, args.tokenizer_id)):
             parser.error(
-                "--corpus-file requires --prompt-tokens, --tokenizer-id, "
-                "and --tokenizer-revision"
+                "--corpus-file requires --prompt-tokens and --tokenizer-id"
             )
 
         prompt_factory = CorpusPromptFactory(

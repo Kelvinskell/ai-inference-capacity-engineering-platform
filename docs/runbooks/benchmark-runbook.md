@@ -41,14 +41,18 @@ Prometheus and DCGM measurements remain scoped to the predictor pod and its GPU 
 | InferenceService | `deepseek-r1-14b` |
 | Predictor Service | `deepseek-r1-14b-predictor` |
 | Model artifact | `casperhansen/deepseek-r1-distill-qwen-14b-awq` |
-| Model/tokenizer revision | `bc43ec1bbf08de53452630806d5989208b4186db` |
+| Model revision | `bc43ec1bbf08de53452630806d5989208b4186db` |
+| Tokenizer source | Predictor `/models` mount backed by S3 |
 | vLLM model path and API model ID | `/models` |
 | Inference URL | `http://127.0.0.1:18080/v1/completions` |
 | Development API key | `notforprod` |
 | Prometheus URL | `http://127.0.0.1:9090` |
 | Warmup per case | 120 seconds |
 | Measurement per case | 480 seconds |
-| Request timeout | 120 seconds |
+| Load-generator request timeout | 380 seconds |
+| Envoy request timeout | 420 seconds |
+| Envoy HTTP stream-idle timeout | 420 seconds |
+| AWS NLB TCP idle timeout | 480 seconds |
 
 The checked-in API key is for development validation only. Set `INFER_API_KEY` to the active credential if the Secret has been changed.
 
@@ -77,7 +81,7 @@ source .venv/bin/activate
 python3 -m pip install -r benchmarks/inference-performance/python/requirements.txt
 ```
 
-The `transformers` dependency loads the pinned Hugging Face tokenizer. Ensure the tokenizer is already cached or that the machine can reach Hugging Face before beginning a long run.
+Before changing the InferenceService, the runner copies `config.json`, `special_tokens_map.json`, `tokenizer_config.json`, and `tokenizer.json` from the Ready predictor's `/models` mount into `results/tokenizer`. The load generator uses that local cache with `local_files_only=True`; benchmark execution does not download tokenizer data from Hugging Face.
 
 ## Cluster Validation
 
@@ -124,7 +128,7 @@ Automatic forwarding is skipped when the configured URL is not local or when its
 
 ## Benchmark Matrix
 
-The allowed search space is defined in [benchmarks/inference-performance/configs/benchmark-matrix.sh](../../benchmarks/inference-performance/configs/benchmark-matrix.sh):
+The validation allowlist is defined in [benchmarks/inference-performance/configs/benchmark-matrix.sh](../../benchmarks/inference-performance/configs/benchmark-matrix.sh). It does not define the execution plan or case count. Active `configs/profiles/*.sh` files define the cases; files ending in `.sh.disabled` are excluded.
 
 | Dimension | Allowed values |
 |---|---|
@@ -141,18 +145,17 @@ The 39,872-token prompt is paired with 128 output tokens to fill a 40,000-token 
 
 | Profile | Cases | Primary variable |
 |---|---:|---|
-| `concurrency-saturation` | 7 | Concurrency from 1 through 100 |
-| `prompt-length-scaling` | 49 | Seven prompt lengths across seven concurrency levels |
-| `output-length-scaling` | 21 | Three output lengths across seven concurrency levels |
-| `gpu-memory-scaling` | 28 | Four GPU memory targets across seven concurrency levels |
-| `model-length-scaling` | 28 | Four model-length limits across seven concurrency levels |
-| `scheduler-batching` | 42 | Six sequence/batched-token configurations across seven concurrency levels |
-| `streaming-comparison` | 14 | Streaming and non-streaming across seven concurrency levels |
-| **Complete suite** | **189** | All named profiles |
+| `concurrency-saturation` | 5 | Concurrency `1 5 10 20 40` |
+| `prompt-length-scaling` | 10 | Five prompt lengths at concurrency `1` and `10` |
+| `output-length-scaling` | 3 | Three output lengths at concurrency `20` |
+| `scheduler-batching` | 4 | Four scheduler configurations at concurrency `20` |
+| **Active suite** | **22** | All active `.sh` profiles |
+
+`gpu-memory-scaling`, `model-length-scaling`, and `streaming-comparison` are currently disabled with the `.sh.disabled` suffix.
 
 Profiles are hypothesis-driven and execute sequentially. They are not run in parallel.
 
-At the default 10 minutes of request activity per case, the complete suite contains 31.5 hours of warmup and measurement time. Predictor restarts and stabilization add further runtime.
+At the default 30-second warmup and 480-second measurement, the active suite contains 3 hours and 7 minutes of request activity. Predictor restarts, readiness, and stabilization add further runtime.
 
 ## Prompt and Output Control
 
@@ -185,7 +188,7 @@ Plan one profile:
 bash benchmarks/inference-performance/run-benchmark.sh plan concurrency-saturation
 ```
 
-The full plan should report 189 cases.
+The full plan should report 22 cases.
 
 ## Run the Benchmark
 
@@ -219,7 +222,7 @@ POST_READY_SETTLE_SECONDS=30 \
 bash benchmarks/inference-performance/run-benchmark.sh concurrency-saturation
 ```
 
-This still executes all seven concurrency cases in the profile. It is intended to validate routing, authentication, tokenizer loading, result generation, and metric queries rather than produce trustworthy capacity conclusions.
+This still executes all five concurrency cases in the profile. It is intended to validate routing, authentication, tokenizer loading, result generation, and metric queries rather than produce trustworthy capacity conclusions.
 
 ## Runtime Overrides
 
@@ -230,14 +233,18 @@ Common environment variables are:
 | `INFER_API_KEY` | `notforprod` | Envoy bearer credential |
 | `INFER_URL` | `http://127.0.0.1:18080/v1/completions` | OpenAI-compatible completion endpoint |
 | `PROM_URL` | `http://127.0.0.1:9090` | Prometheus endpoint |
-| `WARMUP_SECONDS` | `120` | Warmup duration per case |
+| `WARMUP_SECONDS` | `30` | Warmup duration per case |
 | `DURATION_SECONDS` | `480` | Measurement duration per case |
-| `REQUEST_TIMEOUT_SECONDS` | `120` | Per-request timeout |
+| `REQUEST_TIMEOUT_SECONDS` | `380` | Per-request load-generator timeout |
+| `METRICS_RETRY_ATTEMPTS` | `3` | Prometheus collection attempts after a completed case |
+| `METRICS_RETRY_DELAY_SECONDS` | `15` | Delay between Prometheus collection attempts |
 | `POST_READY_SETTLE_SECONDS` | `240` | Stabilization delay after predictor readiness |
 | `ENVOY_SERVICE` | discovered | Explicit generated Envoy Service override |
 | `AUTO_PORT_FORWARD_INFER` | `true` | Manage the Envoy port-forward |
 | `AUTO_PORT_FORWARD_PROM` | `true` | Manage the Prometheus port-forward |
 | `MODEL_ID` | `/models` | Model identifier sent in API requests |
+
+The timeout chain is ordered as load generator (380 seconds), Envoy (420 seconds), and NLB (480 seconds). Requests that exceed 380 seconds are classified consistently as client-side benchmark timeouts, while the gateway and load balancer remain available beyond that cutoff.
 
 Example using externally managed endpoints:
 
@@ -282,7 +289,7 @@ results/
     <run-and-case-key>-summary.json
 ```
 
-- `benchmark-results.csv` is the normalized aggregate dataset. One row represents one measured case.
+- `benchmark-results.csv` is the normalized aggregate dataset. Its 64-field schema is identical for completed and startup-failed cases.
 - `benchmark.log` contains timestamped orchestrator and subprocess output.
 - Each JSONL file contains one record per measured request.
 - Each summary JSON contains the measurement bounds, workload settings, and request totals used by the statistics and metrics scripts.
@@ -293,9 +300,16 @@ Generated result directories are ignored by Git and should not be committed.
 
 ## Measurements
 
-The unified CSV records:
+The unified CSV contains 64 fields:
+
+- 12 experiment and configuration fields.
+- 3 case-status fields: `case_status`, `error_type`, and `error_message`.
+- 49 request, latency, throughput, vLLM, Prometheus, and GPU telemetry fields.
+
+The fields cover:
 
 - Experiment identity, hypothesis, engine settings, workload shape, and concurrency.
+- Case completion status, error type, and error message.
 - Attempted requests, successful requests, errors, and success/error rates.
 - Attempted and successful requests per second.
 - Actual prompt, output, and total token throughput.
@@ -309,6 +323,10 @@ The unified CSV records:
 - GPU utilization, framebuffer use, tensor activity, and DRAM activity.
 
 Unavailable measurements are written as empty values rather than zero. In particular, non-streaming requests do not provide TTFT, so their TTFT and per-output-token cells remain empty.
+
+A successful case is recorded with `case_status=completed`; `error_type` and `error_message` are empty. Its request, latency, throughput, vLLM, Prometheus, and GPU fields are populated, except measurements that do not apply, such as TTFT for non-streaming requests.
+
+If the `0.95` GPU-memory configuration cannot start, each skipped workload case is recorded with `case_status=startup_failed` and `error_type=configuration_startup`; performance and telemetry fields remain empty. The runner restores `0.90` and continues.
 
 Prometheus counters use `increase()` over the exact measurement duration and are evaluated at the recorded benchmark end time. DCGM queries are scoped to the Kubernetes node hosting the predictor.
 
@@ -387,7 +405,7 @@ The runner treats required telemetry as mandatory. Missing required Prometheus d
 
 ### GPU metrics are empty
 
-Confirm that DCGM exporter exposes metrics for the predictor node and that its `Hostname` label matches the pod's `.spec.nodeName`:
+Confirm that DCGM exporter exposes metrics for the predictor node and that its `hostname` label matches the pod's `.spec.nodeName`:
 
 ```bash
 kubectl -n llm-serving get pod \
@@ -397,7 +415,7 @@ kubectl -n llm-serving get pod \
 
 ### Tokenizer cannot be loaded
 
-Activate the environment containing `transformers`, verify the pinned tokenizer revision is accessible, and ensure the Hugging Face cache is populated before an offline run.
+Confirm that a Ready predictor pod can read `config.json`, `special_tokens_map.json`, `tokenizer_config.json`, and `tokenizer.json` from `/models`. The runner must cache and validate these files before it changes any Kubernetes resources.
 
 ### Benchmark is interrupted
 

@@ -44,6 +44,7 @@ source "${MATRIX_CONFIG}"
 
 RESULTS_DIR="${SCRIPT_DIR}/results"
 REQUEST_RESULTS_DIR="${RESULTS_DIR}/request-level"
+LOCAL_TOKENIZER_DIR="${RESULTS_DIR}/tokenizer"
 
 BENCHMARK_RESULTS_FILE="${RESULTS_DIR}/benchmark-results.csv"
 LOG_FILE="${RESULTS_DIR}/benchmark.log"
@@ -93,7 +94,6 @@ INFER_API_KEY="${INFER_API_KEY:-notforprod}"
 
 AUTO_PORT_FORWARD_INFER="${AUTO_PORT_FORWARD_INFER:-true}"
 ENVOY_NAMESPACE="${ENVOY_NAMESPACE:-envoy-gateway-system}"
-ENVOY_GATEWAY_NAMESPACE="${ENVOY_GATEWAY_NAMESPACE:-llm-serving}"
 ENVOY_GATEWAY_NAME="${ENVOY_GATEWAY_NAME:-envoy-ai-gateway}"
 ENVOY_SERVICE="${ENVOY_SERVICE:-}"
 
@@ -103,20 +103,22 @@ PROM_SERVICE="${PROM_SERVICE:-kube-prometheus-stack-prometheus}"
 
 MODEL_PATH="${MODEL_PATH:-/models}"
 MODEL_ID="${MODEL_ID:-/models}"
-TOKENIZER_ID="${TOKENIZER_ID:-casperhansen/deepseek-r1-distill-qwen-14b-awq}"
-TOKENIZER_REVISION="${TOKENIZER_REVISION:-bc43ec1bbf08de53452630806d5989208b4186db}"
+TOKENIZER_ID="${TOKENIZER_ID:-${LOCAL_TOKENIZER_DIR}}"
+TOKENIZER_REVISION="${TOKENIZER_REVISION:-}"
 
 POD_REGEX="${POD_REGEX:-${INFERENCE_SERVICE}-predictor-.*}"
 
-WARMUP_SECONDS="${WARMUP_SECONDS:-120}"
+WARMUP_SECONDS="${WARMUP_SECONDS:-30}"
 DURATION_SECONDS="${DURATION_SECONDS:-480}"
 
-REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-120}"
+REQUEST_TIMEOUT_SECONDS="${REQUEST_TIMEOUT_SECONDS:-380}"
+METRICS_RETRY_ATTEMPTS="${METRICS_RETRY_ATTEMPTS:-3}"
+METRICS_RETRY_DELAY_SECONDS="${METRICS_RETRY_DELAY_SECONDS:-15}"
 
 TEMPERATURE="${TEMPERATURE:-0.2}"
 
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-3}"
-READY_WAIT_TIMEOUT_SECONDS="${READY_WAIT_TIMEOUT_SECONDS:-180}"
+READY_WAIT_TIMEOUT_SECONDS="${READY_WAIT_TIMEOUT_SECONDS:-600}"
 POST_READY_SETTLE_SECONDS="${POST_READY_SETTLE_SECONDS:-240}"
 
 PF_INFER_PID=""
@@ -150,6 +152,27 @@ require_tools() {
 	command -v jq >/dev/null || fatal "jq not found"
 	command -v curl >/dev/null || fatal "curl not found"
 	command -v python3 >/dev/null || fatal "python3 not found"
+	[[ -r "${CORPUS_FILE}" ]] || fatal "Corpus file is not readable: ${CORPUS_FILE}"
+
+	python3 - <<'PY' || fatal "Install benchmark dependencies with: python3 -m pip install -r benchmarks/inference-performance/python/requirements.txt"
+import importlib.util
+import sys
+
+if sys.version_info < (3, 9):
+	raise SystemExit("Python 3.9 or newer is required.")
+
+required_modules = ("aiohttp", "requests", "transformers")
+missing_modules = [
+	module
+	for module in required_modules
+	if importlib.util.find_spec(module) is None
+]
+
+if missing_modules:
+	raise SystemExit(
+		"Missing Python modules: " + ", ".join(missing_modules)
+	)
+PY
 }
 
 configured_level() {
@@ -158,6 +181,69 @@ configured_level() {
 	local levels="$2"
 
 	[[ " ${levels} " == *" ${selected} "* ]]
+}
+
+ensure_local_tokenizer() {
+
+	local tokenizer_files=(
+		config.json
+		special_tokens_map.json
+		tokenizer_config.json
+		tokenizer.json
+	)
+	local tokenizer_file
+	local predictor_pod
+	local temporary_file
+	local needs_copy="false"
+
+	for tokenizer_file in "${tokenizer_files[@]}"; do
+		if [[ ! -s "${LOCAL_TOKENIZER_DIR}/${tokenizer_file}" ]]; then
+			needs_copy="true"
+			break
+		fi
+	done
+
+	if [[ "${needs_copy}" == "true" ]]; then
+		predictor_pod="$(
+			kubectl -n "${NAMESPACE}" get pods \
+				-l "serving.kserve.io/inferenceservice=${INFERENCE_SERVICE}" \
+				-o json |
+				jq -r '
+					.items[]
+					| select(any(.status.conditions[]?; .type == "Ready" and .status == "True"))
+					| .metadata.name
+				' | head -n 1
+		)"
+
+		[[ -n "${predictor_pod}" ]] \
+			|| fatal "No Ready predictor pod is available to provide tokenizer files"
+
+		mkdir -p "${LOCAL_TOKENIZER_DIR}"
+		log "Caching tokenizer files from pod=${predictor_pod}"
+
+		for tokenizer_file in "${tokenizer_files[@]}"; do
+			temporary_file="${LOCAL_TOKENIZER_DIR}/.${tokenizer_file}.tmp"
+			kubectl -n "${NAMESPACE}" exec "${predictor_pod}" \
+				-c kserve-container -- \
+				cat "${MODEL_PATH}/${tokenizer_file}" > "${temporary_file}" \
+				|| fatal "Unable to copy tokenizer file ${tokenizer_file} from predictor"
+			[[ -s "${temporary_file}" ]] \
+				|| fatal "Tokenizer file ${tokenizer_file} copied from predictor is empty"
+			mv "${temporary_file}" "${LOCAL_TOKENIZER_DIR}/${tokenizer_file}"
+		done
+	fi
+
+	python3 - "${LOCAL_TOKENIZER_DIR}" <<'PY' \
+		|| fatal "Unable to load tokenizer from ${LOCAL_TOKENIZER_DIR}"
+import sys
+from transformers import AutoTokenizer
+
+AutoTokenizer.from_pretrained(sys.argv[1], local_files_only=True)
+PY
+
+	TOKENIZER_ID="${LOCAL_TOKENIZER_DIR}"
+	TOKENIZER_REVISION=""
+	log "Tokenizer ready path=${TOKENIZER_ID}"
 }
 
 validate_profile() {
@@ -256,7 +342,7 @@ EOF
 init_results_files() {
 
 	if [[ ! -f "${BENCHMARK_RESULTS_FILE}" ]]; then
-		echo "timestamp,run_id,profile,profile_hypothesis,stream,prompt_tokens,max_tokens,gpu_memory_utilization,max_model_len,max_num_seqs,max_num_batched_tokens,concurrency,requests_total,successes,errors,success_rate_pct,error_rate_pct,attempted_rps,successful_rps,output_length_match_rate_pct,actual_prompt_tokens_total,actual_output_tokens_total,actual_prompt_tokens_per_sec,actual_output_tokens_per_sec,actual_total_tokens_per_sec,latency_avg_ms,latency_min_ms,latency_max_ms,latency_p50_ms,latency_p90_ms,latency_p95_ms,latency_p99_ms,error_duration_avg_ms,error_duration_p95_ms,ttft_avg_ms,ttft_p50_ms,ttft_p95_ms,ttft_p99_ms,time_per_output_token_avg_ms,time_per_output_token_p95_ms,server_output_tokens_total,server_output_tokens_per_sec,preemptions_total,prefix_cache_hits_total,requests_running_avg,requests_running_max,requests_waiting_avg,requests_waiting_max,kv_cache_pct_avg,kv_cache_pct_max,gpu_util_avg,gpu_util_max,gpu_memory_used_mib_avg,gpu_memory_used_mib_max,gpu_memory_free_mib_min,gpu_memory_pct_avg,gpu_memory_pct_max,tensor_active_avg,tensor_active_max,dram_active_avg,dram_active_max" \
+		echo "timestamp,run_id,profile,profile_hypothesis,stream,prompt_tokens,max_tokens,gpu_memory_utilization,max_model_len,max_num_seqs,max_num_batched_tokens,concurrency,case_status,error_type,error_message,requests_total,successes,errors,success_rate_pct,error_rate_pct,attempted_rps,successful_rps,output_length_match_rate_pct,actual_prompt_tokens_total,actual_output_tokens_total,actual_prompt_tokens_per_sec,actual_output_tokens_per_sec,actual_total_tokens_per_sec,latency_avg_ms,latency_min_ms,latency_max_ms,latency_p50_ms,latency_p90_ms,latency_p95_ms,latency_p99_ms,error_duration_avg_ms,error_duration_p95_ms,ttft_avg_ms,ttft_p50_ms,ttft_p95_ms,ttft_p99_ms,time_per_output_token_avg_ms,time_per_output_token_p95_ms,server_output_tokens_total,server_output_tokens_per_sec,preemptions_total,prefix_cache_hits_total,requests_running_avg,requests_running_max,requests_waiting_avg,requests_waiting_max,kv_cache_pct_avg,kv_cache_pct_max,gpu_util_avg,gpu_util_max,gpu_memory_used_mib_avg,gpu_memory_used_mib_max,gpu_memory_free_mib_min,gpu_memory_pct_avg,gpu_memory_pct_max,tensor_active_avg,tensor_active_max,dram_active_avg,dram_active_max" \
 			> "${BENCHMARK_RESULTS_FILE}"
 	fi
 }
@@ -279,23 +365,18 @@ resolve_envoy_service() {
 		return 0
 	fi
 
-	local service_prefix
 	local services
 	local service_count
 
-	service_prefix="envoy-${ENVOY_GATEWAY_NAMESPACE}-${ENVOY_GATEWAY_NAME}-"
 	services="$(
-		kubectl -n "${ENVOY_NAMESPACE}" get services -o json |
-			jq -r --arg prefix "${service_prefix}" '
-				.items[]
-				| select(.metadata.name | startswith($prefix))
-				| .metadata.name
-			'
+		kubectl -n "${ENVOY_NAMESPACE}" get services \
+			-l "gateway.envoyproxy.io/owning-gateway-name=${ENVOY_GATEWAY_NAME}" \
+			-o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
 	)"
 	service_count="$(printf '%s\n' "${services}" | grep -c . || true)"
 
 	(( service_count == 1 )) \
-		|| fatal "Expected one Envoy Service with prefix ${service_prefix}, found ${service_count}; set ENVOY_SERVICE explicitly"
+		|| fatal "Expected one Envoy Service owned by Gateway ${ENVOY_GATEWAY_NAME}, found ${service_count}; set ENVOY_SERVICE explicitly"
 
 	ENVOY_SERVICE="${services}"
 	log "Discovered Envoy Service=${ENVOY_SERVICE}"
@@ -506,6 +587,53 @@ EOF
 # Benchmark Execution
 ###############################################################################
 
+record_configuration_failure() {
+
+	local profile="$1"
+	local seqs="$2"
+	local batched="$3"
+	local gpu_memory="$4"
+	local model_len="$5"
+	local error_message="$6"
+	local prompt_tokens
+	local output_tokens
+	local stream_mode
+	local concurrency
+	local ts
+
+	for prompt_tokens in ${PROMPT_TOKEN_VALUES}; do
+		for output_tokens in ${OUTPUT_TOKEN_VALUES}; do
+			for stream_mode in ${STREAM_MODE_VALUES}; do
+				for concurrency in ${CONCURRENCY_VALUES}; do
+					ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+					jq -nr \
+						--arg timestamp "${ts}" \
+						--arg run_id "${RUN_ID}" \
+						--arg profile "${profile}" \
+						--arg hypothesis "${PROFILE_HYPOTHESIS}" \
+						--argjson stream "${stream_mode}" \
+						--argjson prompt_tokens "${prompt_tokens}" \
+						--argjson output_tokens "${output_tokens}" \
+						--argjson gpu_memory "${gpu_memory}" \
+						--argjson model_len "${model_len}" \
+						--argjson seqs "${seqs}" \
+						--argjson batched "${batched}" \
+						--argjson concurrency "${concurrency}" \
+						--arg error_message "${error_message}" '
+						[
+							$timestamp, $run_id, $profile, $hypothesis, $stream,
+							$prompt_tokens, $output_tokens, $gpu_memory, $model_len,
+							$seqs, $batched, $concurrency,
+							"startup_failed", "configuration_startup", $error_message
+						] + [range(0; 49) | null] | @csv
+					' >> "${BENCHMARK_RESULTS_FILE}"
+				done
+			done
+		done
+	done
+}
+
 run_concurrency_test() {
 
 	local profile="$1"
@@ -610,15 +738,28 @@ PY
 
 	ensure_prom_endpoint
 
-	metrics_json="$(
-		python3 "${PYTHON_DIR}/metrics.py" \
-			--prom-url "${PROM_URL}" \
-			--namespace "${NAMESPACE}" \
-			--pod-regex "${POD_REGEX}" \
-			--gpu-hostname "${PREDICTOR_NODE}" \
-			--start "${run_start}" \
-			--end "${run_end}"
-	)"
+	local metrics_attempt
+	for ((metrics_attempt = 1; metrics_attempt <= METRICS_RETRY_ATTEMPTS; metrics_attempt++)); do
+		if metrics_json="$(
+			python3 "${PYTHON_DIR}/metrics.py" \
+				--prom-url "${PROM_URL}" \
+				--namespace "${NAMESPACE}" \
+				--pod-regex "${POD_REGEX}" \
+				--gpu-hostname "${PREDICTOR_NODE}" \
+				--start "${run_start}" \
+				--end "${run_end}"
+		)"; then
+			break
+		fi
+
+		if ((metrics_attempt == METRICS_RETRY_ATTEMPTS)); then
+			fatal "Prometheus metrics collection failed after ${METRICS_RETRY_ATTEMPTS} attempts"
+		fi
+
+		warn "Prometheus metrics collection attempt ${metrics_attempt}/${METRICS_RETRY_ATTEMPTS} failed; retrying in ${METRICS_RETRY_DELAY_SECONDS}s"
+		sleep "${METRICS_RETRY_DELAY_SECONDS}"
+		ensure_prom_endpoint
+	done
 
 	jq -nr \
 		--arg timestamp "${ts}" \
@@ -633,12 +774,14 @@ PY
 		--argjson seqs "${seqs}" \
 		--argjson batched "${batched}" \
 		--argjson concurrency "${concurrency}" \
+		--arg case_status "completed" \
 		--argjson stats "${stats_json}" \
 		--argjson metrics "${metrics_json}" '
 		[
 			$timestamp, $run_id, $profile, $hypothesis, $stream,
 			$prompt_tokens, $output_tokens, $gpu_memory, $model_len,
 			$seqs, $batched, $concurrency,
+			$case_status, "", "",
 			$stats.requests_total, $stats.successes, $stats.errors,
 			$stats.success_rate_pct, $stats.error_rate_pct,
 			$stats.attempted_rps, $stats.successful_rps,
@@ -703,7 +846,27 @@ run_profile() {
 			for model_len in ${MAX_MODEL_LEN_VALUES}; do
 
 				if [[ "${PLAN_ONLY}" != "true" ]]; then
-					patch_isvc_profile "${seqs}" "${batched}" "${gpu_memory}" "${model_len}"
+					if [[ "${gpu_memory}" == "0.95" ]]; then
+						if ! (
+							patch_isvc_profile \
+								"${seqs}" "${batched}" \
+								"${gpu_memory}" "${model_len}"
+						); then
+							local failure_message
+							failure_message="vLLM failed to become ready with gpu_memory_utilization=${gpu_memory}"
+							warn "Configuration startup_failed profile=${PROFILE_ID} seqs=${seqs} batched=${batched} gpu_memory=${gpu_memory} model_len=${model_len}; restoring gpu_memory=0.90 and continuing"
+							record_configuration_failure \
+								"${PROFILE_ID}" "${seqs}" "${batched}" \
+								"${gpu_memory}" "${model_len}" "${failure_message}"
+							patch_isvc_profile \
+								"${seqs}" "${batched}" \
+								"0.90" "${model_len}"
+							continue
+						fi
+						resolve_predictor_node
+					else
+						patch_isvc_profile "${seqs}" "${batched}" "${gpu_memory}" "${model_len}"
+					fi
 					ensure_infer_endpoint
 				fi
 
@@ -787,6 +950,7 @@ main() {
 	RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 	init_logging
 	init_results_files
+	ensure_local_tokenizer
 	ensure_prom_endpoint
 	run_requested_profiles "${requested}"
 	log "Benchmark complete run_id=${RUN_ID}"
