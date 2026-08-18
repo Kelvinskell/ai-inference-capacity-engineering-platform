@@ -85,3 +85,6 @@ jobs:
 
           # Gateway resources.
           kubectl apply -f kubernetes/gateway
+
+          # Keda autoscaling
+          kubectl apply -f kubernetes/autoscaling
