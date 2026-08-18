@@ -33,9 +33,11 @@ spec:
           - --gpu-memory-utilization
           - "0.90"
           - --max-num-seqs
-          - "16"
+          - "40"
           - --max-model-len
           - "15000"
+          - --max-num-batched-tokens
+          - "2048"
           - --reasoning-parser
           - deepseek_r1
 
