@@ -37,7 +37,7 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-        metricName: deepseek_r1_14b_latency
+        metricName: deepseek_r1_14b_p99_latency
         threshold: "30"
         query: |
           histogram_quantile(
