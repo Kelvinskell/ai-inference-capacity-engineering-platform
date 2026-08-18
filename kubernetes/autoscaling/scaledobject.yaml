@@ -41,7 +41,7 @@ spec:
         threshold: "30"
         query: |
           histogram_quantile(
-            0.95,
+            0.99,
             sum by (le) (
               rate(vllm:request_inference_time_seconds_bucket{namespace="llm-serving", pod=~"deepseek-r1-14b.*"}[5m])
             )
