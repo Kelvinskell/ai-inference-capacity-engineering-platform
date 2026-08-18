@@ -1,0 +1,48 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+spec:
+  scaleTargetRef:
+    name: deepseek-r1-14b
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  pollingInterval: 15
+  cooldownPeriod: 180
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 30
+          policies:
+            - type: Percent
+              value: 100
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Percent
+              value: 25
+              periodSeconds: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        metricName: deepseek_r1_14b_queue_depth
+        threshold: "2"
+        query: |
+          sum(vllm:num_requests_waiting{namespace="llm-serving", pod=~"deepseek-r1-14b.*"})
+
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        metricName: deepseek_r1_14b_latency
+        threshold: "30"
+        query: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(vllm:request_inference_time_seconds_bucket{namespace="llm-serving", pod=~"deepseek-r1-14b.*"}[5m])
+            )
+          )
