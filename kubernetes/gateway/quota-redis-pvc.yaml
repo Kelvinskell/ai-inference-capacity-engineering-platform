@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: redis-system
+  labels:
+    app.kubernetes.io/name: redis-data
+    app.kubernetes.io/part-of: envoy-ai-gateway
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: auto-ebs-gp3
+  resources:
+    requests:
+      storage: 2Gi
