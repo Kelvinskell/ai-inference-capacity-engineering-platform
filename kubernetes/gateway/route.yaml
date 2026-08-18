@@ -1,0 +1,18 @@
+apiVersion: aigateway.envoyproxy.io/v1beta1
+kind: AIGatewayRoute
+metadata:
+  name: deepseek-r1-14b
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-ai-gateway
+  rules:
+    - timeouts:
+        request: 420s
+      backendRefs:
+        - name: deepseek-r1-14b
