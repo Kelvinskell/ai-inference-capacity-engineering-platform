@@ -35,7 +35,7 @@ variable "open_webui_storage_size" {
 variable "openai_base_api_url" {
   description = "OpenAI-compatible Envoy AI Gateway endpoint used by Open WebUI."
   type        = string
-  default     = "http://envoy-ai-gateway.llm-serving.svc.cluster.local/v1"
+  default     = "http://envoy-ai-gateway.envoy-gateway-system.svc.cluster.local/v1"
 }
 
 variable "development_secret" {

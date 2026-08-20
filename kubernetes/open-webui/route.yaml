@@ -1,0 +1,36 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: open-webui
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: open-webui
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-ai-gateway
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /
+        - path:
+            type: PathPrefix
+            value: /_app
+        - path:
+            type: PathPrefix
+            value: /static
+        - path:
+            type: PathPrefix
+            value: /api
+        - path:
+            type: PathPrefix
+            value: /ws
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: open-webui
+          namespace: open-webui
+          port: 80

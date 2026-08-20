@@ -88,3 +88,6 @@ jobs:
 
           # Keda autoscaling
           kubectl apply -f kubernetes/autoscaling
+
+          # Open-WebUI resources.
+          kubectl apply -f kubernetes/open-webui

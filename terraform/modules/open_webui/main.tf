@@ -63,6 +63,16 @@ resource "helm_release" "open_webui" {
           name  = "ENABLE_OLLAMA_API"
           value = "false"
         },
+        {
+          name = "OPENAI_API_CONFIGS"
+          value = jsonencode({
+            "0" = {
+              enable    = true
+              auth_type = "bearer"
+              model_ids = ["/models"]
+            }
+          })
+        },
       ]
 
       resources = {
