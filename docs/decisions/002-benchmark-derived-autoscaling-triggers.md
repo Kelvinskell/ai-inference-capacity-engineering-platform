@@ -16,30 +16,36 @@ The benchmark holds the deployed vLLM configuration constant and tests concurren
 
 The most recent completed run produced these relevant observations for one GPU-backed predictor replica:
 
-| Concurrency | Successful requests/s | p99 latency | Maximum waiting requests |
-|---:|---:|---:|---:|
-| 1 | 0.33 | 3.1s | 0 |
-| 5 | 0.98 | 5.2s | 2 |
-| 10 | 1.32 | 8.5s | 5 |
-| 20 | 1.54 | 15.5s | 7 |
-| 40 | 1.63 | 35.5s | 25 |
+| Concurrency | Successful requests/s | p99 latency | Average waiting requests | Maximum waiting requests |
+|---:|---:|---:|---:|---:|
+| 1 | 0.33 | 3.1s | 0.000 | 0 |
+| 5 | 0.98 | 5.2s | 0.242 | 2 |
+| 10 | 1.32 | 8.5s | 1.152 | 5 |
+| 20 | 1.54 | 15.5s | 1.424 | 7 |
+| 40 | 1.63 | 35.5s | 2.000 | 25 |
 
-Throughput approaches a ceiling near 1.5 to 1.6 successful requests per second per replica, while queueing begins at concurrency 5 and tail latency breaches 30 seconds at concurrency 40.
+Throughput approaches a ceiling near 1.5 to 1.6 successful requests per second per replica. Brief queueing first appears at concurrency 5, sustained average queue depth increases as concurrency rises, and the average reaches 2 while tail latency breaches 30 seconds at concurrency 40. Maximum queue depth is retained as a burst diagnostic, but it is not the statistic used by the KEDA queue trigger.
 
 ## Decision
 
 I use three independent KEDA Prometheus scale signals. KEDA/HPA calculates a desired replica count for each trigger and applies the largest result; the configuration does not assign a priority order to queue depth, KV-cache utilization, or p99 latency.
 
-The queue-depth signal has a threshold of 2 waiting requests:
+The queue-depth signal has a threshold of 2 average waiting requests over a rolling one-minute window:
 
 ```promql
-sum(vllm:num_requests_waiting{
-  namespace="llm-serving",
-  pod=~"deepseek-r1-14b.*"
-})
+sum(
+  avg_over_time(
+    vllm:num_requests_waiting{
+      namespace="llm-serving",
+      pod=~"deepseek-r1-14b.*"
+    }[1m]
+  )
+)
 ```
 
-Queue depth is direct evidence that requests are waiting for active replica capacity. The threshold is intentionally small because the benchmark first observes queued requests at concurrency 5, before p99 latency becomes severe.
+`avg_over_time` converts each predictor's instantaneous waiting-request gauge into a one-minute rolling average, matching the benchmark collector's use of the average across samples rather than its maximum. The outer `sum` produces one cluster-wide queue value across all predictor replicas. This prevents a brief queue spike from driving scale-out while preserving sustained queue pressure as direct evidence that active replica capacity is insufficient.
+
+The threshold of 2 matches the measured average queue depth at concurrency 40, where throughput has plateaued and p99 latency reaches 35.5 seconds. It is therefore an initial saturation guardrail, not a claim that scaling begins when queueing first appears. End-to-end multi-replica testing must determine whether a lower average threshold is needed to add capacity before the latency breach.
 
 The KV-cache signal uses the sum of the raw per-pod utilization fractions with a threshold of 0.75:
 
@@ -73,7 +79,8 @@ I retain one minimum replica because model startup and GPU provisioning are slow
 ## Consequences
 
 - Any one of the queue-depth, KV-cache, or p99 triggers can raise the desired replica count. The HPA uses the largest desired count, not a priority order.
-- The queue-depth signal should add capacity when requests are waiting. The KV-cache signal may raise capacity before a queue forms, while the p99 signal can react only after completed requests expose a latency breach.
+- The queue-depth trigger reacts to sustained one-minute average pressure, not individual queue spikes. With the initial threshold of 2, it represents measured saturation pressure and may need to be lowered if scale-out begins too late.
+- The KV-cache signal may raise capacity before a queue forms, while the p99 signal can react only after completed requests expose a latency breach.
 - The KV-cache threshold is a hypothesis, not an established cache-exhaustion boundary. Validate it under sustained multi-replica load and revise it if it does not improve scale-out behavior or causes unnecessary replicas for long-context requests.
 - The trigger values are valid for the benchmarked model, vLLM arguments, request shape, GPU type, and one-GPU-per-predictor deployment. Re-run the concurrency-saturation benchmark after changing any of those inputs and revise this ADR and the [ScaledObject](../../kubernetes/autoscaling/scaledobject.yaml) when the saturation point changes.
 - The six-replica cap is an infrastructure ceiling, not a throughput promise. It requires six schedulable GPUs and model storage that supports predictor replicas across nodes.
