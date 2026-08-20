@@ -12,16 +12,17 @@ spec:
       kind: AIServiceBackend                  
       name: deepseek-r1-14b                   
   perModelQuotas:
-    - modelName: deepseek-r1-14b              
-      quota:
-        defaultBucket:
-          limit: 100000000                      
-          duration: 1d                        
-        bucketRules:
-          - clientSelectors:
-              - headers:
-                  - name: x-client-id         
-                    type: Distinct             
-            quota:
-              limit: 1000000                  
-              duration: 1d                    
+  - modelName: /models
+    quota:
+      defaultBucket:
+        limit: 1000
+        duration: 1d
+      bucketRules:
+        - clientSelectors:
+            - headers:
+                - name: x-client-id
+                  type: Exact
+                  value: development-client
+          quota:
+            limit: 1000
+            duration: 1d
