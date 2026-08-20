@@ -23,9 +23,9 @@ The [GatewayClass and Gateway](../../kubernetes/gateway/gateway.yaml) create the
 
 The [AIGatewayRoute](../../kubernetes/gateway/route.yaml) sends AI traffic to the [AIServiceBackend and Backend](../../kubernetes/gateway/backend.yaml), which resolve to the internal KServe predictor service. The route uses a 420-second request timeout to allow long-running inference and streaming responses.
 
-The [SecurityPolicy](../../kubernetes/gateway/auth.yaml) validates an API key from the `Authorization` header, removes the supplied credential before forwarding, and sets the trusted `x-client-id` header from the authenticated key identity. The current `development-client` key is intentionally a non-production demonstration credential.
+The [SecurityPolicy](../../kubernetes/gateway/security-policy.yaml) validates an API key from the `Authorization` header, removes the supplied credential before forwarding, and sets the trusted `x-client-id` header from the authenticated key identity. The current `development-client` key is intentionally a non-production demonstration credential.
 
-The [BackendTrafficPolicy](../../kubernetes/gateway/rate-limit.yaml) limits incoming traffic to 100 requests per second. The [ClientTrafficPolicy](../../kubernetes/gateway/traffic-policy.yaml) sets a 420-second stream idle timeout and a 50 MiB connection buffer limit.
+The [BackendTrafficPolicy](../../kubernetes/gateway/traffic-policy.yaml) limits incoming traffic to 100 requests per second. The [ClientTrafficPolicy](../../kubernetes/gateway/traffic-policy.yaml) sets a 420-second stream idle timeout and a 50 MiB connection buffer limit.
 
 The [QuotaPolicy](../../kubernetes/gateway/quota-policy.yaml) applies model-aware token accounting. It provides a 1 million token rolling-day client bucket that exactly matches the trusted `x-client-id: development-client` header, plus a 100 million token rolling-day default bucket. Additional clients require their own explicit `Exact` selector rules. Envoy AI Gateway's current shared quota mode permits a request while at least one matching bucket has capacity. Therefore, after the development client consumes its 1 million token allowance, it may consume remaining capacity from the 100 million token platform pool.
 
