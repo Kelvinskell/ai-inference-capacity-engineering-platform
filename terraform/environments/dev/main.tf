@@ -97,3 +97,15 @@ module "keda" {
 
   depends_on = [module.eks]
 }
+
+# Deploy Open WebUI as a client of the existing Envoy AI Gateway.
+module "open_webui" {
+  source = "../../modules/open_webui"
+
+  enabled                  = var.enable_open_webui
+  open_webui_chart_version = var.open_webui_chart_version
+  open_webui_storage_class = var.open_webui_storage_class
+  open_webui_storage_size  = var.open_webui_storage_size
+
+  depends_on = [module.eks, module.envoy_ai_gateway]
+}
