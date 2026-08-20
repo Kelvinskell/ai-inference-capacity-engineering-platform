@@ -83,6 +83,31 @@ def object_matches(
     )
 
 
+def manifest_matches_revision(
+    s3_client: Any,
+    s3_prefix: str,
+    revision: str,
+) -> bool:
+    """Return whether S3 has a completion manifest for the configured revision."""
+
+    manifest_key = f"{s3_prefix}/_MANIFEST.json"
+
+    try:
+        response = s3_client.head_object(
+            Bucket=S3_BUCKET,
+            Key=manifest_key,
+        )
+    except ClientError as error:
+        error_code = error.response["Error"]["Code"]
+
+        if error_code in {"404", "NoSuchKey", "NotFound"}:
+            return False
+
+        raise
+
+    return response.get("Metadata", {}).get("revision") == revision
+
+
 def upload_model_file(
     s3_client: Any,
     transfer_config: TransferConfig,
@@ -238,6 +263,10 @@ def sync_model(
     model_id = model["model_id"]
     revision = model["revision"]
     s3_prefix = model["s3_prefix"]
+
+    if manifest_matches_revision(s3_client, s3_prefix, revision):
+        print(f"\nSkipping {model_id}@{revision}; completion manifest already exists")
+        return
 
     # Temporary model data is removed after this model finishes syncing.
     with tempfile.TemporaryDirectory(prefix="hf-model-") as temporary_directory:
