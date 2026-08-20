@@ -9,8 +9,8 @@ resource "helm_release" "keda" {
 
   set = [
     {
-    name  = "crds.install"
-    value = "true"
-  }
+      name  = "crds.install"
+      value = "true"
+    }
   ]
 }
