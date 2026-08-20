@@ -21,6 +21,15 @@ resource "helm_release" "envoy_gateway" {
           extensionApis = {
             enableBackend = true
           }
+
+          rateLimit = {
+            backend = {
+              type = "Redis"
+              redis = {
+                url = "redis.redis-system.svc.cluster.local:6379"
+              }
+            }
+          }
         }
       }
     })

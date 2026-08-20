@@ -1,0 +1,27 @@
+apiVersion: aigateway.envoyproxy.io/v1alpha1 
+kind: QuotaPolicy                             
+metadata:
+  name: deepseek-r1-14b-quota-policy 
+  namespace: llm-serving                      
+  labels:
+    app.kubernetes.io/name: deepseek-r1-14b-quota-policy   
+    app.kubernetes.io/part-of: llm-serving    
+spec:
+  targetRefs:
+    - group: aigateway.envoyproxy.io          
+      kind: AIServiceBackend                  
+      name: deepseek-r1-14b                   
+  perModelQuotas:
+    - modelName: deepseek-r1-14b              
+      quota:
+        defaultBucket:
+          limit: 100000000                      
+          duration: 1d                        
+        bucketRules:
+          - clientSelectors:
+              - headers:
+                  - name: x-client-id         
+                    type: Distinct             
+            quota:
+              limit: 1000000                  
+              duration: 1d                    

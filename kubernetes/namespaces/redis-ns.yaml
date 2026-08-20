@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-system
+  labels:
+    app.kubernetes.io/part-of: envoy-ai-gateway
+    app.kubernetes.io/name: redis-system

@@ -1,0 +1,18 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: envoy-ai-gateway
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: envoy-ai-gateway
+    app.kubernetes.io/part-of: llm-serving
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-ai-gateway
+  timeout:
+    http:
+      streamIdleTimeout: 420s
+  connection:
+    bufferLimit: 50Mi

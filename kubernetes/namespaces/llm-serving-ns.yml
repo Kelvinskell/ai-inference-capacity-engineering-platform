@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: llm-serving
   labels:
-    app.kubernetes.io/part-of: k8s-llm-serving-platform
+    app.kubernetes.io/part-of: llm-serving
     app.kubernetes.io/name: llm-serving
