@@ -32,7 +32,11 @@ spec:
         metricName: deepseek_r1_14b_queue_depth
         threshold: "2"
         query: |
-          sum(vllm:num_requests_waiting{namespace="llm-serving", pod=~"deepseek-r1-14b.*"})
+          sum(
+            avg_over_time(
+              vllm:num_requests_waiting{namespace="llm-serving", pod=~"deepseek-r1-14b.*"}[1m]
+            )
+          )
 
     - type: prometheus
       metadata:
