@@ -7,8 +7,10 @@ resource "helm_release" "keda" {
   create_namespace = true
   timeout          = 900
 
-  set {
+  set = [
+    {
     name  = "crds.install"
     value = "true"
   }
+  ]
 }
