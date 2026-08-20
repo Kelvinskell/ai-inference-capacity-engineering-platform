@@ -39,3 +39,9 @@ enable_envoy_ai_gateway          = true
 envoy_gateway_chart_version      = "v1.8.3"
 envoy_ai_gateway_chart_version   = "v1.0.0"
 
+# Open WebUI
+enable_open_webui        = true
+open_webui_chart_version = "16.0.0"
+open_webui_storage_class = "auto-ebs-gp3"
+open_webui_storage_size  = "5Gi"
+

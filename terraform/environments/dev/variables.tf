@@ -214,3 +214,38 @@ variable "envoy_ai_gateway_chart_version" {
     error_message = "envoy_ai_gateway_chart_version must be a stable semantic version prefixed with v."
   }
 }
+
+# Open WebUI
+variable "enable_open_webui" {
+  description = "Enable Open WebUI installation."
+  type        = bool
+  default     = true
+}
+
+variable "open_webui_chart_version" {
+  description = "Pinned Open WebUI Helm chart version."
+  type        = string
+  default     = "16.0.0"
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+$", var.open_webui_chart_version))
+    error_message = "open_webui_chart_version must be a stable semantic version."
+  }
+}
+
+variable "open_webui_storage_class" {
+  description = "StorageClass used by the Open WebUI PVC."
+  type        = string
+  default     = "auto-ebs-gp3"
+}
+
+variable "open_webui_storage_size" {
+  description = "Storage requested by the Open WebUI PVC."
+  type        = string
+  default     = "5Gi"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*(Ki|Mi|Gi|Ti|Pi|Ei)$", var.open_webui_storage_size))
+    error_message = "open_webui_storage_size must be a valid Kubernetes quantity."
+  }
+}
