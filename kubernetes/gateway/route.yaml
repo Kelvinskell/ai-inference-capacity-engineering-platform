@@ -16,4 +16,4 @@ spec:
         request: 420s
       backendRefs:
         - name: deepseek-r1-14b
-          modelNameOverride: deepseek-r1-14b
+          modelNameOverride: /models

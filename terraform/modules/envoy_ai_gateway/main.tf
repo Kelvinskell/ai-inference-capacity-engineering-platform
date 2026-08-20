@@ -19,7 +19,28 @@ resource "helm_release" "envoy_gateway" {
       config = {
         envoyGateway = {
           extensionApis = {
-            enableBackend = true
+            enableBackend          = true
+            enableEnvoyPatchPolicy = true
+          }
+
+          extensionManager = {
+            hooks = {
+              xdsTranslator = {
+                translation = {
+                  listener = { includeAll = true }
+                  route    = { includeAll = true }
+                  cluster  = { includeAll = true }
+                  secret   = { includeAll = true }
+                }
+                post = ["Translation", "Cluster", "Route"]
+              }
+            }
+            service = {
+              fqdn = {
+                hostname = "ai-gateway-controller.${var.envoy_ai_gateway_namespace}.svc.cluster.local"
+                port     = 1063
+              }
+            }
           }
 
           rateLimit = {

@@ -5,7 +5,7 @@ metadata:
   namespace: llm-serving
 spec:
   scaleTargetRef:
-    name: deepseek-r1-14b
+    name: deepseek-r1-14b-predictor
   minReplicaCount: 1
   maxReplicaCount: 6
   pollingInterval: 15

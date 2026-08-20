@@ -18,6 +18,26 @@ spec:
         app.kubernetes.io/name: redis
         app.kubernetes.io/part-of: envoy-ai-gateway
     spec:
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: initialize-redis-data
+          image: redis:8.2.4-alpine3.22
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              chown -R 999:999 /data
+              chmod 770 /data
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data
+              mountPath: /data
       containers:
         - name: redis
           image: redis:8.2.4-alpine3.22
