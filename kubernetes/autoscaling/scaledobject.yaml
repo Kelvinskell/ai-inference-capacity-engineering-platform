@@ -37,6 +37,14 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        metricName: deepseek_r1_14b_kv_cache_demand
+        threshold: "0.75"
+        query: |
+          sum(vllm:kv_cache_usage_perc{namespace="llm-serving", pod=~"deepseek-r1-14b.*"})
+
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
         metricName: deepseek_r1_14b_p99_latency
         threshold: "30"
         query: |
